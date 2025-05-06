@@ -1,11 +1,16 @@
-# Usa una imagen oficial de PHP con Apache
 FROM php:8.2-apache
 
-# Copia todos los archivos de tu proyecto al directorio del servidor
+# Copia el código fuente
 COPY . /var/www/html/
 
-# Da permisos correctos
+# Permisos
 RUN chown -R www-data:www-data /var/www/html
 
-# Expone el puerto 80 (usado por Apache)
+# Habilita mod_rewrite
+RUN a2enmod rewrite
+
+# Permite .htaccess
+RUN sed -i 's/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
+
+# Expone el puerto
 EXPOSE 80

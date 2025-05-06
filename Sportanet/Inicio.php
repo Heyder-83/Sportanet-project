@@ -27,9 +27,9 @@
         </div>
 
         <div class="menu">
-            <a href="html.php">Bookings</a>
-            <a href="html.php">Calendar</a>
-            <a href="html.php">Publish your event</a>
+            <a href="index.php">Bookings</a>
+            <a href="index.php">Calendar</a>
+            <a href="index.php">Publish your event</a>
         </div>
     </main>
 </body>

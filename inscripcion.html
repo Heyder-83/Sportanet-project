@@ -9,24 +9,26 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
-    <header>
-        <nav class="navbar">
-            <div class="logo">Sportanet</div>
-            <ul class="nav-links">
-                <li><a href="index.html">Inicio</a></li>
-                <li><a href="#eventos">Eventos</a></li>
-                <li><a href="#inscripcion">Inscripción</a></li>
-                <li><a href="#contacto">Contacto</a></li>
-            </ul>
-        </nav>
-        <section class="hero" id="inicio">
-            <div class="hero-text">
-                <h1>Inscríbete a tu próximo reto deportivo</h1>
-                <p>Explora, participa y vive el deporte al máximo.</p>
-                <a href="#eventos" class="btn">Ver Eventos</a>
-            </div>
-        </section>
-    </header>
+
+    <!-- Script general para cargar el header a cualquier html -->
+    <div id="header-container"></div>
+    
+    <!-- Script que carga el encabezado -->
+    <script>
+        // Selecciona el contenedor del encabezado
+        const headerContainer = document.getElementById('header-container');
+
+        // Usa la API fetch para obtener el contenido de header.html
+        fetch('includes/header.html')
+            .then(response => response.text())
+            .then(html => {
+                // Inserta el HTML obtenido en el contenedor
+                headerContainer.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error al cargar el encabezado:', error);
+            });
+    </script>
 
     <main>
         <section class="eventos" id="eventos">

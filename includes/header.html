@@ -1,17 +1,49 @@
-<header>
-        <nav class="navbar">
-            <div class="logo">Sportanet</div>
-            <ul class="nav-links">
-                <li><a href="index.html">Inicio</a></li>
-                <li><a href="#eventos">Eventos</a></li>
-                <li><a href="#contacto">Contacto</a></li>
-            </ul>
-        </nav>
-        <section class="hero" id="inicio">
-            <div class="hero-text">
-                <h1>Inscríbete a tu próximo reto deportivo</h1>
-                <p>Explora, participa y vive el deporte al máximo.</p>
-                <a href="#eventos" class="btn">Ver Eventos</a>
-            </div>
-        </section>
+<header class="navbar">
+    <div class="logo" id="logo-sportanet">Sportanet</div>
+
+    <ul class="nav-links">
+        <li><a id="nav-inicio" href="index.html">Inicio</a></li>
+        <span class="separator">|</span>
+        <li><a id="nav-eventos" href="events.html">Eventos</a></li>
+        <span class="separator">|</span>
+        <li><a id="btn-login" href="#">Login</a></li>
+    </ul>
 </header>
+
+<!-- MODAL -->
+<div id="modal-login" class="modal">
+
+    <div class="modal-content">
+
+        <!-- BOTÓN CERRAR -->
+        <span id="close-modal" class="close">&times;</span>
+
+        <!-- FORMULARIO LOGIN -->
+        <form id="form-login">
+            <h2>Iniciar Sesión</h2>
+            <input type="email" id="login-email" placeholder="Correo" required>
+            <input type="password" id="login-password" placeholder="Contraseña" required>
+            <button type="submit" class="btn">Ingresar</button>
+
+            <p class="toggle-form">
+                ¿No tienes cuenta?
+                <a id="mostrar-registro" href="#">Regístrate</a>
+            </p>
+        </form>
+
+        <!-- FORMULARIO REGISTRO -->
+        <form id="form-registro" style="display:none;">
+            <h2>Registro</h2>
+            <input type="text" id="reg-nombre" placeholder="Nombre completo" required>
+            <input type="email" id="reg-email" placeholder="Correo" required>
+            <input type="password" id="reg-password" placeholder="Contraseña" required>
+            <button type="submit" class="btn">Crear cuenta</button>
+
+            <p class="toggle-form">
+                ¿Ya tienes cuenta?
+                <a id="mostrar-login" href="#">Inicia sesión</a>
+            </p>
+        </form>
+
+    </div>
+</div>

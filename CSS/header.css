@@ -1,0 +1,88 @@
+/* MODAL */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    display: none; /* IMPORTANTE → evita el problema de que se muestre */
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 0.5s ease;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-content {
+    background: #002b4d;
+    padding: 2rem;
+    border-radius: 10px;
+    width: 350px;
+    position: relative;
+    animation: popUp 0.6s ease;
+}
+
+/* Botón cerrar */
+.close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #00FF7F;
+}
+
+.close:hover {
+    color: #00cc66;
+}
+
+/* Formularios */
+.modal-content h2 {
+    text-align: center;
+    color: #00FF7F;
+}
+
+.modal-content input {
+    background: #003366;
+    color: white;
+    border: 1px solid #00FF7F;
+}
+
+.toggle-form {
+    text-align: center;
+}
+
+.toggle-form a {
+    color: #00FF7F;
+    cursor: pointer;
+}
+
+.toggle-form a:hover {
+    color: #00cc66;
+}
+
+/* Separador del header */
+.separator {
+    color: #00FF7F;
+    font-weight: bold;
+}
+.btn {
+    background: #00FF7F;
+    color: #002b4d;
+    border: none;
+    padding: 10px;
+    font-size: 1rem;
+    width: 100%;
+    margin-top: 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.btn:hover {
+    background: #00cc66;
+}

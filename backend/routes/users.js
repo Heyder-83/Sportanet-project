@@ -21,7 +21,10 @@ router.get('/:id', (req, res) => {
 
 // POST create user
 router.post('/', (req, res) => {
-    const data = req.body;
+    const { full_name, email, phone, pwd } = req.body;
+
+    const data = { full_name, email, phone, pwd };
+
     pool.query('INSERT INTO users SET ?', data, (err, result) => {
         if (err) return res.status(500).json({ error: err });
         res.json({ message: 'User created', user_id: result.insertId });
@@ -30,7 +33,10 @@ router.post('/', (req, res) => {
 
 // PUT update user
 router.put('/:id', (req, res) => {
-    const data = req.body;
+    const { full_name, email, phone, pwd } = req.body;
+
+    const data = { full_name, email, phone, pwd };
+
     pool.query(
         'UPDATE users SET ? WHERE user_id = ?',
         [data, req.params.id],

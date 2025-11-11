@@ -600,15 +600,40 @@ function initProfileEvents() {
 function openProfileModal() {
     const user = APP_STATE.currentUser || JSON.parse(localStorage.getItem("user") || "{}");
     
-    // Cargar datos del usuario
-    document.getElementById("perfil-nombre").value = user.nombre || user.full_name || "";
-    document.getElementById("perfil-email").value = user.email || "";
-    document.getElementById("perfil-phone").value = user.phone || "";
-
-    // Modo por defecto: SOLO LECTURA
+    console.log("=== openProfileModal DEBUG ===");
+    console.log("APP_STATE.currentUser:", APP_STATE.currentUser);
+    console.log("localStorage user:", localStorage.getItem("user"));
+    console.log("Merged user object:", user);
+    console.log("user.full_name:", user.full_name);
+    console.log("user.email:", user.email);
+    console.log("user.phone:", user.phone);
+    
+    // Obtener referencias a los inputs
     const inputNombre = document.getElementById("perfil-nombre");
     const inputEmail = document.getElementById("perfil-email");
     const inputPhone = document.getElementById("perfil-phone");
+    
+    console.log("Input elements found:", {
+        nombre: !!inputNombre,
+        email: !!inputEmail,
+        phone: !!inputPhone
+    });
+    
+    // Cargar datos del usuario (usar full_name del backend)
+    if (inputNombre) {
+        inputNombre.value = user.full_name || user.nombre || user.name || "";
+        console.log("Set nombre to:", inputNombre.value);
+    }
+    if (inputEmail) {
+        inputEmail.value = user.email || "";
+        console.log("Set email to:", inputEmail.value);
+    }
+    if (inputPhone) {
+        inputPhone.value = user.phone || "";
+        console.log("Set phone to:", inputPhone.value);
+    }
+
+    // Modo por defecto: SOLO LECTURA
     const btnEditar = document.getElementById("btn-editar-perfil");
     const perfilButtons = document.getElementById("perfil-buttons");
     const dangerZone = document.getElementById("danger-zone") || document.querySelector('.danger-zone');
@@ -629,6 +654,8 @@ function openProfileModal() {
 
     // Limpiar mensajes previos
     clearProfileMessages();
+    
+    console.log("=== Modal opened successfully ===");
 }
 
 /**

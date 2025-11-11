@@ -848,6 +848,33 @@ function showProfileMessage(type, message) {
 }
 
 /**
+ * Extrae un mensaje de error legible desde la respuesta del servidor
+ * @param {any} data
+ * @param {string} defaultMsg
+ * @returns {string}
+ */
+function extractServerErrorMessage(data, defaultMsg = 'No se pudo completar la operación') {
+    if (!data) return defaultMsg;
+    if (typeof data === 'string') return data;
+    if (data.error) {
+        if (typeof data.error === 'string') return data.error;
+        if (data.error.message) return data.error.message;
+        try {
+            return JSON.stringify(data.error);
+        } catch (e) {
+            return defaultMsg;
+        }
+    }
+    // Some endpoints return { message: '...' }
+    if (data.message && typeof data.message === 'string') return data.message;
+    try {
+        return JSON.stringify(data);
+    } catch (e) {
+        return defaultMsg;
+    }
+}
+
+/**
  * Maneja la actualización del perfil
  */
 async function handleUpdateProfile() {
@@ -903,11 +930,12 @@ async function handleUpdateProfile() {
                 closeProfileModal();
             }, 1500);
         } else {
-            showProfileMessage("error", `❌ Error: ${data.error || "No se pudo actualizar el perfil"}`);
+            const errMsg = extractServerErrorMessage(data, "No se pudo actualizar el perfil");
+            showProfileMessage("error", `Error: ${errMsg}`);
         }
     } catch (error) {
         console.error("Error:", error);
-        showProfileMessage("error", "❌ Error de conexión. Intenta de nuevo.");
+        showProfileMessage("error", "Error de conexión. Intenta de nuevo.");
     } finally {
         btnGuardar.disabled = false;
         btnGuardar.textContent = "Guardar Cambios";
@@ -949,13 +977,14 @@ async function handleDeleteAccount() {
             closeProfileModal();
             location.href = "index.html";
         } else {
-            showProfileMessage("error", `❌ Error: ${data.error || "No se pudo eliminar la cuenta"}`);
+            const errMsg = extractServerErrorMessage(data, "No se pudo eliminar la cuenta");
+            showProfileMessage("error", `Error: ${errMsg}`);
             btnConfirmar.disabled = false;
             btnConfirmar.textContent = "Sí, Eliminar Mi Cuenta";
         }
     } catch (error) {
         console.error("Error:", error);
-        showProfileMessage("error", "❌ Error de conexión. Intenta de nuevo.");
+        showProfileMessage("error", "Error de conexión. Intenta de nuevo.");
         btnConfirmar.disabled = false;
         btnConfirmar.textContent = "Sí, Eliminar Mi Cuenta";
     }

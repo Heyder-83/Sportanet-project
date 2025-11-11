@@ -930,6 +930,7 @@ async function handleUpdateProfile() {
                 closeProfileModal();
             }, 1500);
         } else {
+            console.error('Update profile failed response:', data);
             const errMsg = extractServerErrorMessage(data, "No se pudo actualizar el perfil");
             showProfileMessage("error", `Error: ${errMsg}`);
         }
@@ -977,6 +978,7 @@ async function handleDeleteAccount() {
             closeProfileModal();
             location.href = "index.html";
         } else {
+            console.error('Delete account failed response:', data);
             const errMsg = extractServerErrorMessage(data, "No se pudo eliminar la cuenta");
             showProfileMessage("error", `Error: ${errMsg}`);
             btnConfirmar.disabled = false;

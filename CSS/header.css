@@ -437,3 +437,149 @@
         padding: 0.5rem;
     }
 }
+
+/* ===== MODAL PERFIL ===== */
+
+.modal-perfil {
+    max-width: 500px !important;
+}
+
+.perfil-buttons {
+    display: flex;
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.perfil-buttons .btn {
+    flex: 1;
+}
+
+.perfil-buttons .btn-secondary {
+    background-color: #666;
+    border: 1px solid #888;
+}
+
+.perfil-buttons .btn-secondary:hover {
+    background-color: #555;
+}
+
+/* ===== ZONA DE PELIGRO ===== */
+
+.danger-zone {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    border: 2px solid #ff4444;
+    border-radius: 8px;
+    background-color: rgba(255, 68, 68, 0.05);
+}
+
+.danger-zone h3 {
+    color: #ff4444;
+    margin-top: 0;
+    font-size: 1.2rem;
+}
+
+.danger-zone p {
+    color: #ddd;
+    margin: 0.5rem 0;
+}
+
+.btn-danger {
+    background-color: #ff4444;
+    color: white;
+    border: none;
+    width: 100%;
+    padding: 0.8rem;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-danger:hover {
+    background-color: #cc0000;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
+}
+
+/* ===== MODAL CONFIRMACIÓN ===== */
+
+.modal-confirmar {
+    max-width: 400px !important;
+    text-align: center;
+}
+
+.modal-confirmar h2 {
+    color: #ff4444;
+    margin-bottom: 1rem;
+}
+
+.warning-text {
+    color: #ff4444;
+    font-weight: bold;
+    margin: 1rem 0;
+    padding: 1rem;
+    background-color: rgba(255, 68, 68, 0.1);
+    border-left: 4px solid #ff4444;
+    border-radius: 4px;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+.modal-buttons .btn {
+    min-width: 150px;
+}
+
+/* ===== BOTONES DE USUARIO ===== */
+
+.btn-profile {
+    background-color: #00FF7F;
+    color: #001f3f;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    margin: 0 0.5rem;
+}
+
+.btn-profile:hover {
+    background-color: #00cc66;
+    transform: translateY(-2px);
+}
+
+.btn-profile:active {
+    transform: translateY(0);
+}
+
+/* ===== RESPONSIVE PERFIL ===== */
+
+@media (max-width: 768px) {
+    .modal-perfil {
+        max-width: 90vw !important;
+    }
+
+    .perfil-buttons {
+        flex-direction: column;
+    }
+
+    .danger-zone {
+        margin-top: 1.5rem;
+    }
+
+    .modal-buttons {
+        flex-direction: column;
+    }
+
+    .modal-buttons .btn {
+        width: 100%;
+    }
+}
+

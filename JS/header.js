@@ -478,7 +478,7 @@ function updateUIAfterLogin() {
     if (btnLogin) btnLogin.style.display = "none";
     if (userMenuContainer) {
         userMenuContainer.style.display = "flex";
-        if (userName) userName.textContent = `Hola, ${user.nombre || user.name || "Usuario"}`;
+        if (userName) userName.textContent = `Hola, ${user.full_name || user.nombre || user.name || "Usuario"}`;
     }
 }
 
@@ -524,6 +524,7 @@ function initProfileEvents() {
     const btnCancelarEliminar = document.getElementById("btn-cancelar-eliminar");
     const btnConfirmarEliminar = document.getElementById("btn-confirmar-eliminar");
     const modalConfirmarEliminar = document.getElementById("modal-confirmar-eliminar");
+    const btnEditarPerfil = document.getElementById("btn-editar-perfil");
 
     // Abrir modal de perfil
     btnProfile?.addEventListener("click", (e) => {
@@ -538,7 +539,13 @@ function initProfileEvents() {
 
     btnCancelarPerfil?.addEventListener("click", (e) => {
         e.preventDefault();
-        closeProfileModal();
+        // Si estamos en modo edición, revertir a solo lectura; si no, cerrar modal
+        const inputNombre = document.getElementById("perfil-nombre");
+        if (inputNombre && !inputNombre.hasAttribute('readonly')) {
+            revertProfileReadOnly();
+        } else {
+            closeProfileModal();
+        }
     });
 
     // Cerrar modal al hacer click fuera
@@ -563,6 +570,12 @@ function initProfileEvents() {
     formEditarPerfil?.addEventListener("submit", async (e) => {
         e.preventDefault();
         await handleUpdateProfile();
+    });
+
+    // Botón editar perfil (activa el modo edición)
+    btnEditarPerfil?.addEventListener("click", (e) => {
+        e.preventDefault();
+        enableProfileEdit();
     });
 
     // Botón eliminar cuenta
@@ -592,6 +605,23 @@ function openProfileModal() {
     document.getElementById("perfil-email").value = user.email || "";
     document.getElementById("perfil-phone").value = user.phone || "";
 
+    // Modo por defecto: SOLO LECTURA
+    const inputNombre = document.getElementById("perfil-nombre");
+    const inputEmail = document.getElementById("perfil-email");
+    const inputPhone = document.getElementById("perfil-phone");
+    const btnEditar = document.getElementById("btn-editar-perfil");
+    const perfilButtons = document.getElementById("perfil-buttons");
+    const dangerZone = document.getElementById("danger-zone") || document.querySelector('.danger-zone');
+
+    if (inputNombre) inputNombre.setAttribute('readonly', true);
+    if (inputEmail) inputEmail.setAttribute('readonly', true);
+    if (inputPhone) inputPhone.setAttribute('readonly', true);
+
+    // Mostrar botón editar y ocultar botones de guardado/eliminar hasta entrar en modo edición
+    if (btnEditar) btnEditar.style.display = 'inline-block';
+    if (perfilButtons) perfilButtons.style.display = 'none';
+    if (dangerZone) dangerZone.style.display = 'none';
+
     const modalPerfil = document.getElementById("modal-perfil");
     modalPerfil.classList.add("show");
     modalPerfil.setAttribute("aria-hidden", "false");
@@ -609,6 +639,59 @@ function closeProfileModal() {
     modalPerfil.classList.remove("show");
     modalPerfil.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "auto";
+    clearProfileMessages();
+}
+
+/**
+ * Activa el modo edición en el modal de perfil
+ */
+function enableProfileEdit() {
+    const inputNombre = document.getElementById("perfil-nombre");
+    const inputEmail = document.getElementById("perfil-email");
+    const inputPhone = document.getElementById("perfil-phone");
+    const btnEditar = document.getElementById("btn-editar-perfil");
+    const perfilButtons = document.getElementById("perfil-buttons");
+    const dangerZone = document.getElementById("danger-zone") || document.querySelector('.danger-zone');
+
+    if (inputNombre) inputNombre.removeAttribute('readonly');
+    if (inputEmail) inputEmail.removeAttribute('readonly');
+    if (inputPhone) inputPhone.removeAttribute('readonly');
+
+    if (btnEditar) btnEditar.style.display = 'none';
+    if (perfilButtons) perfilButtons.style.display = 'flex';
+    if (dangerZone) dangerZone.style.display = 'block';
+
+    // Focus en el primer campo para editar
+    if (inputNombre) inputNombre.focus();
+}
+
+/**
+ * Revierte el modal de perfil a modo solo lectura sin cerrar
+ */
+function revertProfileReadOnly() {
+    const user = APP_STATE.currentUser || JSON.parse(localStorage.getItem("user") || "{}");
+    const inputNombre = document.getElementById("perfil-nombre");
+    const inputEmail = document.getElementById("perfil-email");
+    const inputPhone = document.getElementById("perfil-phone");
+    const btnEditar = document.getElementById("btn-editar-perfil");
+    const perfilButtons = document.getElementById("perfil-buttons");
+    const dangerZone = document.getElementById("danger-zone") || document.querySelector('.danger-zone');
+
+    // Restaurar valores desde usuario
+    if (inputNombre) inputNombre.value = user.full_name || user.nombre || "";
+    if (inputEmail) inputEmail.value = user.email || "";
+    if (inputPhone) inputPhone.value = user.phone || "";
+
+    // Dejar en readonly
+    if (inputNombre) inputNombre.setAttribute('readonly', true);
+    if (inputEmail) inputEmail.setAttribute('readonly', true);
+    if (inputPhone) inputPhone.setAttribute('readonly', true);
+
+    // Mostrar botón editar y ocultar botones de guardado/eliminar
+    if (btnEditar) btnEditar.style.display = 'inline-block';
+    if (perfilButtons) perfilButtons.style.display = 'none';
+    if (dangerZone) dangerZone.style.display = 'none';
+
     clearProfileMessages();
 }
 
@@ -777,7 +860,7 @@ async function handleUpdateProfile() {
             // Actualizar datos en localStorage
             const updatedUser = {
                 ...user,
-                nombre: nombre,
+                full_name: nombre,
                 email: email,
                 phone: phone
             };
@@ -786,7 +869,7 @@ async function handleUpdateProfile() {
 
             // Actualizar nombre en navbar
             const userName = document.getElementById("user-name");
-            if (userName) userName.textContent = `Hola, ${nombre}`;
+            if (userName) userName.textContent = `Hola, ${updatedUser.full_name}`;
 
             // Cerrar modal después de 1.5 segundos
             setTimeout(() => {

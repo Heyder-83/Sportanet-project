@@ -179,6 +179,7 @@
                     placeholder="Juan Pérez" 
                     required
                     aria-label="Nombre completo"
+                    readonly
                 >
                 <span class="error-message" id="error-perfil-nombre"></span>
             </div>
@@ -192,6 +193,7 @@
                     placeholder="tu@email.com" 
                     required
                     aria-label="Correo electrónico"
+                    readonly
                 >
                 <span class="error-message" id="error-perfil-email"></span>
             </div>
@@ -205,18 +207,24 @@
                     placeholder="+57 (123) 456-7890" 
                     required
                     aria-label="Número de teléfono"
+                    readonly
                 >
                 <span class="error-message" id="error-perfil-phone"></span>
             </div>
 
-            <div class="perfil-buttons">
+            <!-- Acciones en modo solo lectura -->
+            <div id="perfil-readonly-actions">
+                <button type="button" class="btn btn-secondary" id="btn-editar-perfil">Editar Perfil</button>
+            </div>
+
+            <div class="perfil-buttons" id="perfil-buttons" style="display:none;">
                 <button type="submit" class="btn btn-primary" id="btn-guardar-perfil">Guardar Cambios</button>
                 <button type="button" class="btn btn-secondary" id="btn-cancelar-perfil">Cancelar</button>
             </div>
             <div class="form-message" id="perfil-message"></div>
 
             <!-- ZONA DE PELIGRO -->
-            <div class="danger-zone">
+            <div class="danger-zone" id="danger-zone">
                 <h3>Zona de Peligro</h3>
                 <p>Estas acciones no se pueden deshacer.</p>
                 <button type="button" class="btn btn-danger" id="btn-eliminar-cuenta">Eliminar Mi Cuenta</button>

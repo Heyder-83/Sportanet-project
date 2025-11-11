@@ -1,49 +1,147 @@
 <header class="navbar">
-    <div class="logo" id="logo-sportanet">Sportanet</div>
+    <div class="navbar-container">
+        <!-- Logo -->
+        <div class="logo" id="logo-sportanet">
+            <a href="index.html">🏆 Sportanet</a>
+        </div>
 
-    <ul class="nav-links">
-        <li><a id="nav-inicio" href="index.html">Inicio</a></li>
-        <span class="separator">|</span>
-        <li><a id="nav-eventos" href="events.html">Eventos</a></li>
-        <span class="separator">|</span>
-        <li><a id="btn-login" href="#">Login</a></li>
-    </ul>
+        <!-- Botón hamburguesero para móviles -->
+        <button class="hamburger" id="hamburger" aria-label="Menú de navegación" aria-expanded="false">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <!-- Navegación -->
+        <nav class="nav-menu" id="nav-menu">
+            <ul class="nav-links">
+                <li><a id="nav-inicio" href="index.html" class="nav-link">Inicio</a></li>
+                <li><a id="nav-eventos" href="events.html" class="nav-link">Eventos</a></li>
+                <li>
+                    <button id="btn-login" class="nav-link btn-login" aria-label="Abrir formulario de login">
+                        Iniciar Sesión
+                    </button>
+                </li>
+                <li id="user-menu-container" class="user-menu-container" style="display:none;">
+                    <div class="user-info">
+                        <span id="user-name"></span>
+                        <button id="btn-logout" class="btn-logout" aria-label="Cerrar sesión">Salir</button>
+                    </div>
+                </li>
+            </ul>
+        </nav>
+    </div>
 </header>
 
-<!-- MODAL -->
-<div id="modal-login" class="modal">
-
+<!-- MODAL LOGIN/REGISTRO -->
+<div id="modal-auth" class="modal" role="dialog" aria-labelledby="modal-title" aria-hidden="true">
     <div class="modal-content">
-
         <!-- BOTÓN CERRAR -->
-        <span id="close-modal" class="close">&times;</span>
+        <button id="close-modal" class="close" aria-label="Cerrar modal">&times;</button>
 
         <!-- FORMULARIO LOGIN -->
-        <form id="form-login">
-            <h2>Iniciar Sesión</h2>
-            <input type="email" id="login-email" placeholder="Correo" required>
-            <input type="password" id="login-password" placeholder="Contraseña" required>
-            <button type="submit" class="btn">Ingresar</button>
+        <form id="form-login" class="auth-form active-form">
+            <h2 id="modal-title">Iniciar Sesión</h2>
+            
+            <div class="form-group">
+                <label for="login-email">Correo Electrónico</label>
+                <input 
+                    type="email" 
+                    id="login-email" 
+                    name="email"
+                    placeholder="tu@email.com" 
+                    required
+                    aria-label="Correo electrónico"
+                >
+                <span class="error-message" id="error-login-email"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="login-password">Contraseña</label>
+                <input 
+                    type="password" 
+                    id="login-password" 
+                    name="password"
+                    placeholder="Mínimo 6 caracteres" 
+                    required
+                    aria-label="Contraseña"
+                >
+                <span class="error-message" id="error-login-password"></span>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="btn-submit-login">Ingresar</button>
+            <div class="form-message" id="login-message"></div>
 
             <p class="toggle-form">
-                ¿No tienes cuenta?
-                <a id="mostrar-registro" href="#">Regístrate</a>
+                ¿No tienes cuenta? 
+                <button type="button" id="mostrar-registro" class="link-button">Regístrate aquí</button>
             </p>
         </form>
 
         <!-- FORMULARIO REGISTRO -->
-        <form id="form-registro" style="display:none;">
-            <h2>Registro</h2>
-            <input type="text" id="reg-nombre" placeholder="Nombre completo" required>
-            <input type="email" id="reg-email" placeholder="Correo" required>
-            <input type="password" id="reg-password" placeholder="Contraseña" required>
-            <button type="submit" class="btn">Crear cuenta</button>
+        <form id="form-registro" class="auth-form">
+            <h2 id="modal-title">Crear Cuenta</h2>
+            
+            <div class="form-group">
+                <label for="reg-nombre">Nombre Completo</label>
+                <input 
+                    type="text" 
+                    id="reg-nombre" 
+                    name="nombre"
+                    placeholder="Juan Pérez" 
+                    required
+                    aria-label="Nombre completo"
+                >
+                <span class="error-message" id="error-reg-nombre"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="reg-email">Correo Electrónico</label>
+                <input 
+                    type="email" 
+                    id="reg-email" 
+                    name="email"
+                    placeholder="tu@email.com" 
+                    required
+                    aria-label="Correo electrónico"
+                >
+                <span class="error-message" id="error-reg-email"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="reg-password">Contraseña</label>
+                <input 
+                    type="password" 
+                    id="reg-password" 
+                    name="password"
+                    placeholder="Mínimo 6 caracteres" 
+                    required
+                    minlength="6"
+                    aria-label="Contraseña"
+                >
+                <span class="error-message" id="error-reg-password"></span>
+            </div>
+
+            <div class="form-group">
+                <label for="reg-password-confirm">Confirmar Contraseña</label>
+                <input 
+                    type="password" 
+                    id="reg-password-confirm" 
+                    name="password_confirm"
+                    placeholder="Repite tu contraseña" 
+                    required
+                    aria-label="Confirmación de contraseña"
+                >
+                <span class="error-message" id="error-reg-password-confirm"></span>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="btn-submit-registro">Crear Cuenta</button>
+            <div class="form-message" id="registro-message"></div>
 
             <p class="toggle-form">
-                ¿Ya tienes cuenta?
-                <a id="mostrar-login" href="#">Inicia sesión</a>
+                ¿Ya tienes cuenta? 
+                <button type="button" id="mostrar-login" class="link-button">Inicia sesión aquí</button>
             </p>
         </form>
-
     </div>
 </div>

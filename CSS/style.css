@@ -1,15 +1,54 @@
 /* ===== ESTILOS GENERALES ===== */
 
-body {
+* {
     margin: 0;
-    font-family: 'Roboto', sans-serif;
-    background-color: #001f3f; /* Fondo principal azul oscuro */
-    color: #ffffff;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-/* Contenedor general (para que todo aparezca centrado y limpio) */
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: #001f3f;
+    color: #ffffff;
+    line-height: 1.6;
+}
+
+/* ===== CONTENEDOR PRINCIPAL ===== */
+
 main {
+    max-width: 1200px;
+    margin: 0 auto;
     padding: 3rem 2rem;
+    min-height: calc(100vh - 200px);
+}
+
+/* ===== TIPOGRAFÍA ===== */
+
+h1, h2, h3, h4, h5, h6 {
+    color: #00FF7F;
+    margin-bottom: 1rem;
+    font-weight: 700;
+}
+
+h1 {
+    font-size: 2.5rem;
+}
+
+h2 {
+    font-size: 2rem;
+}
+
+h3 {
+    font-size: 1.5rem;
+}
+
+p {
+    margin-bottom: 1rem;
+    opacity: 0.9;
 }
 
 /* ===== LINKS GENERALES ===== */
@@ -17,14 +56,20 @@ main {
 a {
     color: #00FF7F;
     text-decoration: none;
-    transition: color .3s ease;
+    transition: color 0.3s ease;
 }
 
 a:hover {
     color: #00cc66;
+    text-decoration: underline;
 }
 
-/* ===== BOTONES ===== */
+/* ===== BOTONES GENERALES ===== */
+
+button {
+    font-family: inherit;
+    cursor: pointer;
+}
 
 .btn {
     padding: 0.8rem 1.5rem;
@@ -34,12 +79,24 @@ a:hover {
     font-weight: bold;
     cursor: pointer;
     border-radius: 5px;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, transform 0.2s ease;
     display: inline-block;
+    text-decoration: none;
 }
 
 .btn:hover {
     background-color: #00cc66;
+    transform: translateY(-2px);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn:disabled {
+    background-color: #666;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 /* Botón secundario blanco */
@@ -48,41 +105,105 @@ a:hover {
     color: #001f3f;
 }
 
+.btn-secundario:hover {
+    background-color: #f0f0f0;
+}
+
 /* ===== FORMULARIOS ===== */
 
 form {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    max-width: 380px;
-    margin: auto;
+    max-width: 100%;
 }
 
-input, select {
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+textarea,
+select {
     padding: 0.8rem;
-    border: none;
+    border: 2px solid #00FF7F;
     border-radius: 5px;
     font-size: 1rem;
     outline: none;
+    background-color: #003366;
+    color: white;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    font-family: inherit;
+}
+
+input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+input[type="password"]::placeholder,
+input[type="number"]::placeholder,
+input[type="tel"]::placeholder,
+textarea::placeholder {
+    color: #00cc99;
+    opacity: 0.7;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="tel"]:focus,
+textarea:focus,
+select:focus {
+    border-color: #00cc66;
+    box-shadow: 0 0 8px rgba(0, 255, 127, 0.3);
+    background-color: #004d80;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 100px;
 }
 
 /* ===== SECCIONES ===== */
 
 section {
     margin-top: 3rem;
+    animation: fadeInUp 0.6s ease;
+}
+
+.hero {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: linear-gradient(135deg, #001f3f 0%, #002b4d 100%);
+    border-radius: 10px;
+    margin-top: 1rem;
+}
+
+.hero h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.hero p {
+    font-size: 1.2rem;
+    opacity: 0.8;
 }
 
 .contacto, .eventos, .inscripcion {
     background-color: #002b4d;
     padding: 3rem 2rem;
     border-radius: 10px;
+    border-left: 4px solid #00FF7F;
+}
+
+.contacto h2, .eventos h2, .inscripcion h2 {
+    margin-bottom: 1.5rem;
 }
 
 /* ===== TARJETAS DE EVENTOS ===== */
 
 .eventos-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 2rem;
     margin-top: 2rem;
 }
@@ -91,82 +212,230 @@ section {
     background-color: #003366;
     padding: 1.5rem;
     border-radius: 10px;
-    transition: transform 0.3s;
+    border-top: 3px solid #00FF7F;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .evento:hover {
-    transform: translateY(-5px);
+    transform: translateY(-8px);
+    box-shadow: 0 10px 25px rgba(0, 255, 127, 0.2);
+}
+
+.evento h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.evento-descripcion {
+    flex-grow: 1;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    opacity: 0.85;
+}
+
+.evento-fecha {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+    color: #00FF7F;
+}
+
+.evento-lugar {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.evento-buttom {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: auto;
+}
+
+.evento-buttom button {
+    flex: 1;
+}
+
+.evento-placeholder {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 2rem;
+    color: #00FF7F;
 }
 
 /* ===== FOOTER ===== */
 
 footer {
     background-color: #000f1a;
+    border-top: 3px solid #00FF7F;
     text-align: center;
-    padding: 1rem;
-    margin-top: 3rem;
-}
-
-/* ===== MODAL LOGIN/REGISTRO ===== */
-
-.modal {
-    display: none; /* Oculto por defecto */
-    position: fixed;
-    z-index: 9999;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5); /* Fondo oscuro */
-    justify-content: center;
-    align-items: center;
-}
-
-.modal.show {
-    display: flex;
-}
-
-.modal-content {
-    background-color: #002b4d;
     padding: 2rem;
-    border-radius: 10px;
-    width: 350px;
-    animation: fadeIn 0.5s ease;
-    border: 2px solid #00FF7F;
-}
-
-.modal-content h2 {
-    margin-top: 0;
-    color: #00FF7F;
-}
-
-/* Botón cerrar */
-.close {
-    float: right;
-    font-size: 1.5rem;
-    cursor: pointer;
+    margin-top: 4rem;
     color: #ffffff;
-    transition: color .3s ease;
 }
 
-.close:hover {
+footer p {
+    margin-bottom: 0;
+}
+
+footer a {
     color: #00FF7F;
 }
 
-/* Texto para alternar formularios */
-.toggle-form {
-    margin-top: 1rem;
+/* ===== UTILIDADES ===== */
+
+.text-center {
     text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-left {
+    text-align: left;
+}
+
+.mt-1 { margin-top: 1rem; }
+.mt-2 { margin-top: 2rem; }
+.mt-3 { margin-top: 3rem; }
+
+.mb-1 { margin-bottom: 1rem; }
+.mb-2 { margin-bottom: 2rem; }
+.mb-3 { margin-bottom: 3rem; }
+
+.p-1 { padding: 1rem; }
+.p-2 { padding: 2rem; }
+.p-3 { padding: 3rem; }
+
+.hidden {
+    display: none !important;
+}
+
+.visible {
+    display: block !important;
 }
 
 /* ===== ANIMACIONES ===== */
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to   { opacity: 1; transform: scale(1); }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+@media (max-width: 768px) {
+    main {
+        padding: 2rem 1rem;
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+    }
+
+    .hero {
+        padding: 2rem 1rem;
+    }
+
+    .hero h1 {
+        font-size: 2rem;
+    }
+
+    .hero p {
+        font-size: 1rem;
+    }
+
+    .eventos-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .contacto, .eventos, .inscripcion {
+        padding: 2rem 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    main {
+        padding: 1rem;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    h2 {
+        font-size: 1.2rem;
+    }
+
+    h3 {
+        font-size: 1rem;
+    }
+
+    .hero {
+        padding: 1.5rem 1rem;
+        margin-top: 0.5rem;
+    }
+
+    .hero h1 {
+        font-size: 1.5rem;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    textarea,
+    select {
+        font-size: 16px; /* Prevenir zoom en iOS */
+    }
+
+    footer {
+        margin-top: 2rem;
+        padding: 1rem;
+        font-size: 0.9rem;
+    }
+}
+

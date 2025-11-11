@@ -1,35 +1,68 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sportanet</title>
-    <link rel="stylesheet" href="CSS/style.css">
+    <meta name="description" content="Sportanet - Plataforma de eventos deportivos">
+    <meta name="theme-color" content="#001f3f">
+    <title>Sportanet - Inicio</title>
+    
+    <!-- Estilos -->
+    <link rel="stylesheet" href="CSS/header.css">
     <link rel="stylesheet" href="CSS/style.css">
 </head>
 <body>
-    <!-- Script general para cargar el header a cualquier html -->
+    <!-- Contenedor para cargar el header dinámicamente -->
     <div id="header-container"></div>
     
-    <!-- Script que carga el encabezado -->
-    <script>
-        // Selecciona el contenedor del encabezado
-        const headerContainer = document.getElementById('header-container');
-
-        // Usa la API fetch para obtener el contenido de header.html
-        fetch('includes/header.html')
-            .then(response => response.text())
-            .then(html => {
-                // Inserta el HTML obtenido en el contenedor
-                headerContainer.innerHTML = html;
-            })
-            .catch(error => {
-                console.error('Error al cargar el encabezado:', error);
-            });
-    </script>
-
+    <!-- Contenido principal -->
     <main>
-
+        <section class="hero">
+            <h1>Bienvenido a Sportanet</h1>
+            <p>La plataforma para encontrar y participar en eventos deportivos</p>
+        </section>
     </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2025 Sportanet - Todos los derechos reservados.</p>
+    </footer>
+
+    <!-- Script para cargar el header -->
+    <script>
+        /**
+         * Carga el header dinámicamente desde header.html
+         */
+        async function loadHeader() {
+            const headerContainer = document.getElementById('header-container');
+            try {
+                const response = await fetch('includes/header.html');
+                if (!response.ok) throw new Error('Error al cargar el header');
+                
+                const html = await response.text();
+                headerContainer.innerHTML = html;
+
+                // Cargar el script de header después de insertar el HTML
+                const script = document.createElement("script");
+                script.src = "JS/header.js";
+                script.onload = () => {
+                    if (typeof initHeaderEvents === 'function') {
+                        initHeaderEvents();
+                    }
+                };
+                document.body.appendChild(script);
+            } catch (error) {
+                console.error('Error al cargar el encabezado:', error);
+                headerContainer.innerHTML = '<header class="navbar"><p style="color: red;">Error al cargar el menú</p></header>';
+            }
+        }
+
+        // Cargar el header cuando el DOM esté listo
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadHeader);
+        } else {
+            loadHeader();
+        }
+    </script>
 </body>
 </html>

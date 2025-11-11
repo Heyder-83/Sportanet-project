@@ -1,46 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Eventos</title>
+    <meta name="description" content="Eventos deportivos - Sportanet">
+    <meta name="theme-color" content="#001f3f">
+    <title>Eventos - Sportanet</title>
+    
+    <!-- Estilos -->
     <link rel="stylesheet" href="CSS/header.css">
     <link rel="stylesheet" href="CSS/style.css">
 </head>
 <body>
-    <!-- Script general para cargar el header a cualquier html -->
+    <!-- Contenedor para cargar el header dinámicamente -->
     <div id="header-container"></div>
     
-    <!-- Script que carga el encabezado -->
-    <script>
-        const headerContainer = document.getElementById('header-container');
-    
-        fetch('includes/header.html')
-            .then(response => response.text())
-            .then(html => {
-                headerContainer.innerHTML = html;
-            
-                // IMPORTANTE: cargar y ejecutar header.js DESPUÉS
-                const script = document.createElement("script");
-                script.src = "JS/header.js";
-                script.onload = () => initHeaderEvents(); 
-                document.body.appendChild(script);
-            })
-            .catch(error => {   
-                console.error('Error al cargar el encabezado:', error);
-            });
-    </script>
-
-
+    <!-- Contenido principal -->
     <main>
+        <section class="eventos" id="eventos">
+            <h2>Eventos Disponibles</h2>
+            <div class="eventos-grid" id="eventos-grid">
+                <!-- Los eventos se cargarán aquí dinámicamente -->
+                <div class="evento-placeholder">Cargando eventos...</div>
+            </div>
+        </section>
+
         <section class="contacto" id="contacto">
             <h2>Contáctanos</h2>
-            <p>¿Tienes preguntas? Escríbenos a sportanet@gmail.com</p>
+            <p>¿Tienes preguntas? Escríbenos a <a href="mailto:sportanet@gmail.com">sportanet@gmail.com</a></p>
         </section>
     </main>
 
+    <!-- Footer -->
     <footer>
         <p>&copy; 2025 Sportanet - Todos los derechos reservados.</p>
     </footer>
+
+    <!-- Script para cargar el header -->
+    <script>
+        /**
+         * Carga el header dinámicamente desde header.html
+         */
+        async function loadHeader() {
+            const headerContainer = document.getElementById('header-container');
+            try {
+                const response = await fetch('includes/header.html');
+                if (!response.ok) throw new Error('Error al cargar el header');
+                
+                const html = await response.text();
+                headerContainer.innerHTML = html;
+
+                // Cargar el script de header después de insertar el HTML
+                const script = document.createElement("script");
+                script.src = "JS/header.js";
+                script.onload = () => {
+                    if (typeof initHeaderEvents === 'function') {
+                        initHeaderEvents();
+                    }
+                };
+                document.body.appendChild(script);
+            } catch (error) {
+                console.error('Error al cargar el encabezado:', error);
+                headerContainer.innerHTML = '<header class="navbar"><p style="color: red;">Error al cargar el menú</p></header>';
+            }
+        }
+
+        // Cargar el header cuando el DOM esté listo
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadHeader);
+        } else {
+            loadHeader();
+        }
+    </script>
 </body>
 </html>

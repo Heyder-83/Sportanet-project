@@ -10,6 +10,7 @@
     <!-- Estilos -->
     <link rel="stylesheet" href="CSS/header.css">
     <link rel="stylesheet" href="CSS/style.css">
+    <link rel="stylesheet" href="CSS/events.css">
 </head>
 <body>
     <!-- Contenedor para cargar el header dinámicamente -->
@@ -18,15 +19,98 @@
     <!-- Contenido principal -->
     <main>
         <section class="eventos" id="eventos">
-            <h2>Eventos Disponibles</h2>
+            <h2>🏆 Eventos Disponibles</h2>
+            <p class="eventos-descripcion">Descubre y participa en los mejores eventos deportivos</p>
+            
             <div class="eventos-grid" id="eventos-grid">
-                <!-- Los eventos se cargarán aquí dinámicamente -->
-                <div class="evento-placeholder">Cargando eventos...</div>
+                <!-- Evento 1: Torneo Golf Macanal -->
+                <div class="evento-card">
+                    <div class="evento-imagen">
+                        <img src="img/campo_golf_16hoyos.jpg" alt="Torneo Golf Macanal - 16 hoyos" loading="lazy">
+                        <span class="evento-etiqueta">Golf</span>
+                    </div>
+                    
+                    <div class="evento-contenido">
+                        <h3 class="evento-titulo">Torneo Golf Macanal</h3>
+                        
+                        <div class="evento-info">
+                            <div class="info-item">
+                                <span class="info-icono">⛳</span>
+                                <span class="info-texto">16 Hoyos</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-icono">📍</span>
+                                <span class="info-texto">Club de Golf Macanal</span>
+                            </div>
+                        </div>
+                        
+                        <p class="evento-descripcion-card">
+                            Ven y disfruta de un día espectacular de golf en el prestigioso Club de Golf Macanal. 
+                            Compite con otros golfistas y demuestra tu talento en este torneo de 16 hoyos.
+                        </p>
+                        
+                        <div class="evento-detalles">
+                            <span class="evento-participantes">👥 32 participantes</span>
+                            <span class="evento-fecha">📅 15 Dic 2025</span>
+                        </div>
+                        
+                        <div class="evento-botones">
+                            <button class="btn-detalles" onclick="verDetalles('Torneo Golf Macanal')">
+                                Ver Detalles
+                            </button>
+                            <button class="btn-inscribir" onclick="inscribirse('Torneo Golf Macanal')">
+                                ✓ Inscribirse
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evento 2: Torneo Golf Invierno -->
+                <div class="evento-card">
+                    <div class="evento-imagen">
+                        <img src="img/campo_golf_24 hoyos.jpg" alt="Torneo Golf Invierno - 24 hoyos" loading="lazy">
+                        <span class="evento-etiqueta">Golf</span>
+                    </div>
+                    
+                    <div class="evento-contenido">
+                        <h3 class="evento-titulo">Torneo Golf Invierno</h3>
+                        
+                        <div class="evento-info">
+                            <div class="info-item">
+                                <span class="info-icono">⛳</span>
+                                <span class="info-texto">24 Hoyos</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-icono">📍</span>
+                                <span class="info-texto">Country Club Alpine</span>
+                            </div>
+                        </div>
+                        
+                        <p class="evento-descripcion-card">
+                            Participa en el mayor torneo de golf del invierno. Un reto de 24 hoyos 
+                            en el hermoso Country Club Alpine con vistas espectaculares.
+                        </p>
+                        
+                        <div class="evento-detalles">
+                            <span class="evento-participantes">👥 48 participantes</span>
+                            <span class="evento-fecha">📅 28 Dic 2025</span>
+                        </div>
+                        
+                        <div class="evento-botones">
+                            <button class="btn-detalles" onclick="verDetalles('Torneo Golf Invierno')">
+                                Ver Detalles
+                            </button>
+                            <button class="btn-inscribir" onclick="inscribirse('Torneo Golf Invierno')">
+                                ✓ Inscribirse
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
         <section class="contacto" id="contacto">
-            <h2>Contáctanos</h2>
+            <h2>📞 Contáctanos</h2>
             <p>¿Tienes preguntas? Escríbenos a <a href="mailto:sportanet@gmail.com">sportanet@gmail.com</a></p>
         </section>
     </main>
@@ -70,6 +154,35 @@
             document.addEventListener('DOMContentLoaded', loadHeader);
         } else {
             loadHeader();
+        }
+
+        /**
+         * Función para ver detalles del evento
+         */
+        function verDetalles(nombreEvento) {
+            alert(`📋 Detalles de ${nombreEvento}\n\nPróximamente se mostrarán los detalles completos del evento.\n\nMientras tanto, puedes inscribirte para participar.`);
+        }
+
+        /**
+         * Función para inscribirse en un evento
+         */
+        function inscribirse(nombreEvento) {
+            // Verificar si el usuario está logueado
+            const usuario = localStorage.getItem('user');
+            
+            if (!usuario) {
+                alert('Para inscribirte, primero debes iniciar sesión.');
+                // Abrir modal de login
+                const modal = document.getElementById('modal-auth');
+                if (modal) {
+                    modal.classList.add('show');
+                    modal.setAttribute('aria-hidden', 'false');
+                }
+                return;
+            }
+
+            const user = JSON.parse(usuario);
+            alert(`✅ ¡Inscripción realizada!\n\nHola ${user.nombre}, te has inscrito exitosamente en:\n\n🏆 ${nombreEvento}\n\nProximamente recibirás los detalles del evento en tu correo.`);
         }
     </script>
 </body>

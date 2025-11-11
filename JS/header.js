@@ -2,7 +2,8 @@
 const APP_STATE = {
     isLoggedIn: false,
     currentUser: null,
-    token: localStorage.getItem('auth_token') || null
+    token: localStorage.getItem('auth_token') || null,
+    API_URL: 'http://localhost:5000'  // URL del backend
 };
 
 // ===== INICIALIZACIÓN =====
@@ -289,8 +290,7 @@ async function handleLogin() {
         btnSubmit.disabled = true;
         btnSubmit.textContent = "Cargando...";
 
-        // 🔗 CONECTAR CON TU BACKEND AQUÍ
-        const response = await fetch("/api/auth/login", {
+        const response = await fetch(`${APP_STATE.API_URL}/api/auth/login`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -356,8 +356,7 @@ async function handleRegistro() {
         btnSubmit.disabled = true;
         btnSubmit.textContent = "Creando cuenta...";
 
-        // 🔗 CONECTAR CON TU BACKEND AQUÍ
-        const response = await fetch("/api/auth/register", {
+        const response = await fetch(`${APP_STATE.API_URL}/api/auth/register`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -757,8 +756,7 @@ async function handleUpdateProfile() {
         btnGuardar.disabled = true;
         btnGuardar.textContent = "Guardando...";
 
-        // 🔗 CONECTAR CON TU BACKEND
-        const response = await fetch(`/api/users/${userId}`, {
+        const response = await fetch(`${APP_STATE.API_URL}/api/users/${userId}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
@@ -818,8 +816,7 @@ async function handleDeleteAccount() {
         btnConfirmar.disabled = true;
         btnConfirmar.textContent = "Eliminando...";
 
-        // 🔗 CONECTAR CON TU BACKEND
-        const response = await fetch(`/api/users/${userId}`, {
+        const response = await fetch(`${APP_STATE.API_URL}/api/users/${userId}`, {
             method: "DELETE",
             headers: {
                 "Content-Type": "application/json",

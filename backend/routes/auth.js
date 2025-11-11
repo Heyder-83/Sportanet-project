@@ -3,6 +3,9 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/connection');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // REGISTER (con contraseña encriptada)
 router.post('/register', async (req, res) => {
@@ -23,11 +26,30 @@ router.post('/register', async (req, res) => {
         };
 
         pool.query('INSERT INTO users SET ?', userData, (err, result) => {
-            if (err) return res.status(500).json({ error: err });
+            if (err) {
+                // Manejar error de email duplicado
+                if (err.code === 'ER_DUP_ENTRY') {
+                    return res.status(400).json({ error: 'Email already registered' });
+                }
+                return res.status(500).json({ error: err.message });
+            }
+
+            // Generar token JWT
+            const token = jwt.sign(
+                { id: result.insertId, email },
+                JWT_SECRET,
+                { expiresIn: '7d' }
+            );
 
             res.json({
-                message: 'User registered',
-                user_id: result.insertId
+                message: 'User registered successfully',
+                token,
+                user: {
+                    id: result.insertId,
+                    full_name,
+                    email,
+                    phone
+                }
             });
         });
 
@@ -48,7 +70,7 @@ router.post('/login', (req, res) => {
         'SELECT * FROM users WHERE email = ?',
         [email],
         async (err, rows) => {
-            if (err) return res.status(500).json({ error: err });
+            if (err) return res.status(500).json({ error: err.message });
 
             if (rows.length === 0) {
                 return res.status(401).json({ error: 'Invalid credentials' });
@@ -62,12 +84,21 @@ router.post('/login', (req, res) => {
                 return res.status(401).json({ error: 'Invalid credentials' });
             }
 
+            // Generar token JWT
+            const token = jwt.sign(
+                { id: user.user_id, email: user.email },
+                JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+
             res.json({
                 message: 'Login successful',
+                token,
                 user: {
                     id: user.user_id,
                     full_name: user.full_name,
-                    email: user.email
+                    email: user.email,
+                    phone: user.phone
                 }
             });
         }

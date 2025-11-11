@@ -71,12 +71,27 @@ router.put('/:id', (req, res) => {
 
 // DELETE user
 router.delete('/:id', (req, res) => {
+    const userId = req.params.id;
+
+    // First delete user_profile records that reference this user
     pool.query(
-        'DELETE FROM users WHERE user_id = ?',
-        [req.params.id],
-        (err) => {
-            if (err) return res.status(500).json({ error: err });
-            res.json({ message: 'User deleted' });
+        'DELETE FROM user_profile WHERE user_id = ?',
+        [userId],
+        (err1) => {
+            if (err1) {
+                console.error('Error deleting user_profile:', err1);
+                // Continue anyway - user_profile might not exist
+            }
+
+            // Then delete the user
+            pool.query(
+                'DELETE FROM users WHERE user_id = ?',
+                [userId],
+                (err2) => {
+                    if (err2) return res.status(500).json({ error: err2 });
+                    res.json({ message: 'User deleted' });
+                }
+            );
         }
     );
 });

@@ -272,6 +272,7 @@ function clearFormMessages() {
 
 // ===== FUNCIONES DE FORMULARIO =====
 
+// Inicio de sesión - Envia credenciales a `/api/auth/login`, guarda token y user en localStorage
 /**
  * Maneja el envío del formulario de login
  */
@@ -336,6 +337,7 @@ async function handleLogin() {
     }
 }
 
+// Creacion de usuario - Envia datos a `/api/auth/register`, guarda token y user en localStorage
 /**
  * Maneja el envío del formulario de registro
  */
@@ -874,6 +876,7 @@ function extractServerErrorMessage(data, defaultMsg = 'No se pudo completar la o
     }
 }
 
+// Actualizar perfil - Envia PUT a `/api/users/:id` con Authorization header (Bearer token)
 /**
  * Maneja la actualización del perfil
  */
@@ -943,6 +946,7 @@ async function handleUpdateProfile() {
     }
 }
 
+// Eliminacion de cuenta - Envia DELETE a `/api/users/:id`, limpia localStorage y redirige
 /**
  * Maneja la eliminación de la cuenta
  */

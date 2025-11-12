@@ -26,6 +26,7 @@ function getCurrentUser() {
 /**
  * Obtener el token de autenticación
  */
+// Obtener token desde localStorage
 function getAuthToken() {
     return localStorage.getItem('auth_token');
 }
@@ -54,7 +55,7 @@ async function authenticatedFetch(url, options = {}) {
         ...options.headers
     };
 
-    // Agregar token si está disponible
+    // Agregar token en header Authorization si está disponible
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }

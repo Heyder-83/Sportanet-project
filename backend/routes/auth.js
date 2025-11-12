@@ -7,7 +7,11 @@ const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-// REGISTER (con contraseña encriptada)
+// Creacion de usuario (REGISTER):
+// - Recibe full_name, email, phone, pwd
+// - Hashea la contraseña con bcrypt
+// - Inserta el usuario en la base de datos
+// - Genera y devuelve un JWT junto al objeto usuario
 router.post('/register', async (req, res) => {
     const { full_name, email, phone, pwd } = req.body;
 
@@ -34,7 +38,8 @@ router.post('/register', async (req, res) => {
                 return res.status(500).json({ error: err.message });
             }
 
-            // Generar token JWT
+            // Generar token JWT (emisión)
+            // Payload mínimo: id y email. El token permite que el cliente se autentique en peticiones posteriores.
             const token = jwt.sign(
                 { id: result.insertId, email },
                 JWT_SECRET,
@@ -58,7 +63,10 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// LOGIN (comparando hash con bcrypt)
+// Inicio de sesión (LOGIN):
+// - Recibe email y pwd
+// - Busca usuario por email, compara hash con bcrypt
+// - Si coincide, genera y devuelve JWT y datos públicos del usuario
 router.post('/login', (req, res) => {
     const { email, pwd } = req.body;
 
@@ -78,13 +86,13 @@ router.post('/login', (req, res) => {
 
             const user = rows[0];
 
-            // Compare passwords
+            // Comparar contraseñas usando bcrypt
             const match = await bcrypt.compare(pwd, user.pwd);
             if (!match) {
                 return res.status(401).json({ error: 'Invalid credentials' });
             }
 
-            // Generar token JWT
+            // Generar token JWT (emisión tras autenticación correcta)
             const token = jwt.sign(
                 { id: user.user_id, email: user.email },
                 JWT_SECRET,

@@ -7,8 +7,8 @@ const pool = mysql.createPool({
     connectionLimit: 10,
     host: 'localhost',
     user: 'root',
-    password: 'root',
-    database: 'sportanet_v1'
+    password: 'password',
+    database: 'sportanet_v1',
 });
 
 module.exports = pool;

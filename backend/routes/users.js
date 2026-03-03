@@ -25,9 +25,9 @@ router.get('/:id', (req, res) => {
 // Creacion de usuario (POST /api/users)
 // Nota: este endpoint inserta directamente los datos recibidos. Usar preferentemente /api/auth/register para hashing de pwd.
 router.post('/', (req, res) => {
-    const { full_name, email, phone, pwd } = req.body;
+    const { userType, full_name, email, phone, pwd } = req.body;
 
-    const data = { full_name, email, phone, pwd };
+    const data = { userType, full_name, email, phone, pwd };
 
     pool.query('INSERT INTO users SET ?', data, (err, result) => {
         if (err) return res.status(500).json({ error: err });
@@ -41,10 +41,11 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
     (async () => {
         try {
-            const { full_name, email, phone, pwd } = req.body;
+            const { userType, full_name, email, phone, pwd } = req.body;
 
             // Build update object only with provided fields
             const data = {};
+            if (typeof userType !== 'undefined') data.userType = userType;
             if (typeof full_name !== 'undefined') data.full_name = full_name;
             if (typeof email !== 'undefined') data.email = email;
             if (typeof phone !== 'undefined') data.phone = phone;

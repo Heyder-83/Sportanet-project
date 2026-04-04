@@ -1,11 +1,16 @@
 // backend/routes/auth.js
 const express = require('express');
+const path = require('path');
+const dotenv = require('dotenv');
 const router = express.Router();
 const pool = require('../db/connection');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_EXPIRE = process.env.JWT_EXPIRE || '7d';
 
 // Creacion de usuario (REGISTER):
 // - Recibe full_name, email, phone, pwd
@@ -43,7 +48,7 @@ router.post('/register', async (req, res) => {
             const token = jwt.sign(
                 { id: result.insertId, email },
                 JWT_SECRET,
-                { expiresIn: '7d' }
+                { expiresIn: JWT_EXPIRE }
             );
 
             res.json({
@@ -75,7 +80,7 @@ router.post('/login', (req, res) => {
     }
 
     pool.query(
-        'SELECT * FROM users WHERE email = ?',
+        'SELECT user_id, full_name, email, phone, pwd FROM users WHERE email = ?',
         [email],
         async (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -96,7 +101,7 @@ router.post('/login', (req, res) => {
             const token = jwt.sign(
                 { id: user.user_id, email: user.email },
                 JWT_SECRET,
-                { expiresIn: '7d' }
+                { expiresIn: JWT_EXPIRE }
             );
 
             res.json({

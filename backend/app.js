@@ -5,12 +5,21 @@
 // - Inicia el servidor en el puerto configurado
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Cargar variables de entorno desde el archivo .env en la raíz del proyecto
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 const app = express();
-const port = 5000;
+const port = process.env.PORT || 5000;
 
 // Middlewares
 app.use(cors());
 app.use(express.json());
+
+// Servir archivos estáticos del frontend desde la raíz del proyecto
+app.use(express.static(path.join(__dirname, '..')));
 
 // Rutas principales de la API
 // /api/users -> CRUD de usuarios

@@ -50,12 +50,12 @@ npm install
 
 #### 4. Iniciar el backend
 ```bash
-node app.js
+npm start
 ```
 El servidor estará disponible en `http://localhost:5000`
 
 #### 5. Abrir el frontend
-- Abre `index.html` en el navegador o sirve los archivos con un servidor HTTP local
+- Abre `http://localhost:5000` en el navegador
 - La aplicación se conectará automáticamente al backend en `http://localhost:5000`
 
 ### Flujo de Uso

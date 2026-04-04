@@ -9,7 +9,7 @@ Este documento explica, paso a paso y de forma narrativa, cómo fluye la informa
 - Frontend: páginas estáticas (`index.html`, `events.html`) + JavaScript en `JS/` (p. ej. `header.js`, `auth-examples.js`) manejan la UI, envían peticiones al backend y guardan el token/usuario en `localStorage`.
 - Backend: Node.js + Express en `backend/` con rutas en `backend/routes/` (principalmente `auth.js` y `users.js`) y DB connection en `backend/db/connection.js`.
 - Base de datos: MySQL (`sportanet_v1`) con tablas principales `users` y `user_profile` (entre otras relacionadas a eventos).
-- Autenticación: JWT emitido en `auth.js` al registrarse o iniciar sesión. El token se guarda en el frontend y se envía en cabecera `Authorization: Bearer <token>` en peticiones subsecuentes.
+- Autenticación: JWT emitido en `auth.js` al registrarse o iniciar sesión. El token se guarda en el frontend y se envía en cabecera `Authorization: Bearer <token>` en peticiones subsecuentes. Las rutas sensibles ahora requieren verificación de token.
 
 ---
 
@@ -51,7 +51,7 @@ Este documento explica, paso a paso y de forma narrativa, cómo fluye la informa
 - Emisión: en `backend/routes/auth.js` con `jsonwebtoken` (`jwt.sign`). El `JWT_SECRET` se lee de `process.env.JWT_SECRET` (ver `.env.example`).
 - Almacenamiento frontend: `localStorage` (clave `auth_token`) y objeto `user` para datos básicos.
 - Envío: JS añade cabecera `Authorization: Bearer ${APP_STATE.token}` a las peticiones que requieren autenticación (ej. editar perfil, eliminar cuenta). Código relacionado en `JS/header.js` y `JS/auth-examples.js`.
-- Estado actual: las rutas del backend aún no verifican el token (no hay `jwt.verify` en `backend/` salvo que se añada un middleware). Por ello, hoy el token se usa solo para identificar al cliente en el frontend, pero el servidor no rechaza peticiones por falta de token hasta que implementes la verificación.
+- Estado actual: las rutas del backend ahora verifican el token en rutas sensibles (GET /api/users/:id, PUT /api/users/:id, DELETE /api/users/:id) usando un middleware `authenticateToken` que verifica con `jwt.verify`.
 
 ---
 
@@ -104,8 +104,8 @@ Este documento explica, paso a paso y de forma narrativa, cómo fluye la informa
 ## Backend — Archivos clave y responsabilidades
 
 - `backend/app.js`
-  - Inicializa Express, middlewares (`cors`, `express.json()`), y registra rutas: `/api/users` y `/api/auth`.
-  - Escucha en el puerto (5000 en algunas versiones del repo o según `PORT` en `.env`).
+  - Inicializa Express, middlewares (`cors`, `express.json()`), carga variables de entorno con `dotenv`, sirve archivos estáticos del frontend, y registra rutas: `/api/users` y `/api/auth`.
+  - Escucha en el puerto (5000 por defecto o según `PORT` en `.env`).
 
 - `backend/db/connection.js`
   - Exporta `pool` (mysql2) configurado con `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`.
@@ -116,7 +116,7 @@ Este documento explica, paso a paso y de forma narrativa, cómo fluye la informa
   - Genera JWT con `jsonwebtoken` y devuelve `{ token, user }`.
 
 - `backend/routes/users.js`
-  - CRUD para usuarios: `GET /`, `GET /:id`, `POST /`, `PUT /:id`, `DELETE /:id`.
+  - CRUD para usuarios: `GET /` (público, sin contraseñas), `GET /:id` (autenticado, sin contraseña), `POST /` (hashea contraseña), `PUT /:id` (autenticado, hashea si pwd), `DELETE /:id` (autenticado).
   - PUT: actualiza solo campos enviados y hashea contraseña si se proporciona.
   - DELETE: elimina filas dependientes en `user_profile` antes de eliminar de `users`.
 
@@ -190,11 +190,11 @@ Authorization: Bearer <token>
 ```powershell
 cd backend
 npm install
-node app.js
+npm start
 # o en desarrollo: nodemon app.js
 ```
 - Frontend:
-  - Abrir `index.html` y `events.html` en un navegador (o servir con un servidor estático si prefieres). Asegúrate de que `VITE_API_URL` o endpoints apunten a `http://localhost:5000` (o el puerto configurado).
+  - Abrir `http://localhost:5000` en un navegador (el backend sirve los archivos estáticos). Asegúrate de que endpoints apunten a `http://localhost:5000` (o el puerto configurado).
 - Base de datos: MySQL con base de datos `sportanet_v1`. Ver `.env.example` para valores de ejemplo.
 
 ---

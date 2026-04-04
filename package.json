@@ -1,0 +1,21 @@
+{
+  "name": "sportanet-project",
+  "version": "1.0.0",
+  "description": "Sportanet es una plataforma web diseñada para facilitar la búsqueda, gestión y participación en eventos deportivos. Permite a los usuarios registrarse, crear perfiles personalizados, explorar eventos disponibles e inscribirse en actividades deportivas de su interés.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Heyder-83/Sportanet-project.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Heyder-83/Sportanet-project/issues"
+  },
+  "homepage": "https://github.com/Heyder-83/Sportanet-project#readme"
+}

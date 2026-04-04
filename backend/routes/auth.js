@@ -18,9 +18,9 @@ const JWT_EXPIRE = process.env.JWT_EXPIRE || '7d';
 // - Inserta el usuario en la base de datos
 // - Genera y devuelve un JWT junto al objeto usuario
 router.post('/register', async (req, res) => {
-    const { full_name, email, phone, pwd } = req.body;
+    const { userType, full_name, email, phone, pwd } = req.body;
 
-    if (!full_name || !email || !phone || !pwd) {
+    if (!userType || !full_name || !email || !phone || !pwd) {
         return res.status(400).json({ error: 'Missing fields' });
     }
 
@@ -28,6 +28,7 @@ router.post('/register', async (req, res) => {
         const hashedPwd = await bcrypt.hash(pwd, 10);
 
         const userData = {
+            userType,
             full_name,
             email,
             phone,
@@ -56,6 +57,7 @@ router.post('/register', async (req, res) => {
                 token,
                 user: {
                     id: result.insertId,
+                    userType,
                     full_name,
                     email,
                     phone
@@ -109,6 +111,7 @@ router.post('/login', (req, res) => {
                 token,
                 user: {
                     id: user.user_id,
+                    userType: user.userType,
                     full_name: user.full_name,
                     email: user.email,
                     phone: user.phone

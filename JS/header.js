@@ -364,6 +364,7 @@ async function handleRegistro() {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({ 
+                userType: "tipo de usuario",
                 full_name: nombre, 
                 email, 
                 phone,
@@ -606,9 +607,11 @@ function openProfileModal() {
     console.log("APP_STATE.currentUser:", APP_STATE.currentUser);
     console.log("localStorage user:", localStorage.getItem("user"));
     console.log("Merged user object:", user);
+    console.log("user:", user);
     console.log("user.full_name:", user.full_name);
     console.log("user.email:", user.email);
     console.log("user.phone:", user.phone);
+    console.log("user.userType:", user.userType);
     
     // Obtener referencias a los inputs
     const inputNombre = document.getElementById("perfil-nombre");
@@ -699,6 +702,7 @@ function enableProfileEdit() {
  */
 function revertProfileReadOnly() {
     const user = APP_STATE.currentUser || JSON.parse(localStorage.getItem("user") || "{}");
+    const inputUserType = document.getElementById("perfil-user-type");
     const inputNombre = document.getElementById("perfil-nombre");
     const inputEmail = document.getElementById("perfil-email");
     const inputPhone = document.getElementById("perfil-phone");
@@ -707,6 +711,7 @@ function revertProfileReadOnly() {
     const dangerZone = document.getElementById("danger-zone") || document.querySelector('.danger-zone');
 
     // Restaurar valores desde usuario
+    if (inputUserType) inputUserType.value = user.userType || "";
     if (inputNombre) inputNombre.value = user.full_name || user.nombre || "";
     if (inputEmail) inputEmail.value = user.email || "";
     if (inputPhone) inputPhone.value = user.phone || "";
@@ -903,6 +908,7 @@ async function handleUpdateProfile() {
                 "Authorization": `Bearer ${APP_STATE.token}`
             },
             body: JSON.stringify({
+                userType: user.userType,
                 full_name: nombre,
                 email: email,
                 phone: phone
@@ -917,6 +923,7 @@ async function handleUpdateProfile() {
             // Actualizar datos en localStorage
             const updatedUser = {
                 ...user,
+                userType: user.userType,
                 full_name: nombre,
                 email: email,
                 phone: phone

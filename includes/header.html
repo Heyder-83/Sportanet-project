@@ -84,6 +84,17 @@
             <h2 id="modal-title">Crear Cuenta</h2>
             
             <div class="form-group">
+                <label for="reg-user-type">Tipo de usuario
+                <input 
+                    type="checkbox" id="reg-user-type" name="userType" required aria-label="Tipo de usuario"
+                >
+                </label>
+
+
+                <span class="error-message" id="error-reg-nombre"></span>
+            </div>
+
+            <div class="form-group">
                 <label for="reg-nombre">Nombre Completo</label>
                 <input 
                     type="text" 

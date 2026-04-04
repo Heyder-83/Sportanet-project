@@ -52,7 +52,6 @@ router.get('/:id', authenticateToken, (req, res) => {
 });
 
 // Creacion de usuario (POST /api/users)
-<<<<<<< HEAD
 // Hashea la contraseña y valida campos antes de insertar
 router.post('/', async (req, res) => {
     const { full_name, email, phone, pwd } = req.body;
@@ -60,13 +59,6 @@ router.post('/', async (req, res) => {
     if (!full_name || !email || !phone || !pwd) {
         return res.status(400).json({ error: 'Faltan campos obligatorios' });
     }
-=======
-// Nota: este endpoint inserta directamente los datos recibidos. Usar preferentemente /api/auth/register para hashing de pwd.
-router.post('/', (req, res) => {
-    const { userType, full_name, email, phone, pwd } = req.body;
-
-    const data = { userType, full_name, email, phone, pwd };
->>>>>>> 6a9504fad6c9d99c08a9782717a4a63b074794de
 
     try {
         const hashedPwd = await bcrypt.hash(pwd, 10);
@@ -96,15 +88,8 @@ router.put('/:id', authenticateToken, (req, res) => {
 
     (async () => {
         try {
-<<<<<<< HEAD
             const { full_name, email, phone, pwd } = req.body;
-=======
-            const { userType, full_name, email, phone, pwd } = req.body;
-
-            // Build update object only with provided fields
->>>>>>> 6a9504fad6c9d99c08a9782717a4a63b074794de
             const data = {};
-            if (typeof userType !== 'undefined') data.userType = userType;
             if (typeof full_name !== 'undefined') data.full_name = full_name;
             if (typeof email !== 'undefined') data.email = email;
             if (typeof phone !== 'undefined') data.phone = phone;

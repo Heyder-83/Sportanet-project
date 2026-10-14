@@ -1,41 +1,66 @@
-# Dependencias
+# ============================================================
+# Dependencias (nunca al repo)
+# ============================================================
 node_modules/
 */node_modules/
 
-# Archivos de entorno
+# ============================================================
+# Variables de entorno (secretos - NUNCA al repo)
+# ============================================================
 .env
 .env.local
 .env.*.local
 *.env
 
+# ============================================================
 # Backups y temporales
+# ============================================================
 *.bak
 *.bak-*
 *~
 *.swp
 
-# Logs y documentación de trabajo
+# ============================================================
+# Logs y trabajo local
+# ============================================================
 notas/
 *.log
 
+# ============================================================
 # Sistema operativo
+# ============================================================
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# IDE
+# ============================================================
+# IDE / Editores
+# ============================================================
 .vscode/
 .idea/
 *.sublime-project
 *.sublime-workspace
 
+# ============================================================
 # OneDrive / Windows
+# ============================================================
 $RECYCLE.BIN/
 *.lnk
 
-# Material de trabajo IA (solo local)
+# ============================================================
+# Material de trabajo con IA (solo local, no al repo)
+# ============================================================
 AI_CONTEXT.md
 
-# Dumps de base de datos (no versionar)
-Base de Datos/
-*.sql
+# ============================================================
+# Base de datos
+# ------------------------------------------------------------
+# Los .sql pueden contener datos reales → se ignoran por defecto.
+# EXCEPCIÓN: schema.sql es solo estructura (sin datos) → SÍ va al repo.
+# ============================================================
+Base de Datos/*.sql
+Base de Datos/*.dump
+Base de Datos/*.backup
+
+# Excepción explícita: solo el schema sin datos
+!Base de Datos/schema.sql

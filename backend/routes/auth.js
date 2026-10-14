@@ -5,7 +5,8 @@ const pool = require('../db/connection');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const { JWT_SECRET } = require('../config/jwt'); // sin secreto por defecto: falla si falta JWT_SECRET
+const authenticate = require('../middleware/authenticate');
 
 // Creacion de usuario (REGISTER):
 // - Recibe full_name, email, phone, pwd
@@ -111,6 +112,13 @@ router.post('/login', (req, res) => {
             });
         }
     );
+});
+
+// Verificación de sesión (GET /api/auth/me):
+// - Ruta protegida mínima para probar el middleware. No consulta la base de datos.
+// - Devuelve solo la identidad contenida en el token validado.
+router.get('/me', authenticate, (req, res) => {
+    res.json({ id: req.auth.userId, email: req.auth.email });
 });
 
 module.exports = router;

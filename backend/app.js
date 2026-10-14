@@ -5,6 +5,7 @@
 // - Inicia el servidor en el puerto configurado
 const express = require('express');
 const cors = require('cors');
+require('./config/jwt'); // falla al arrancar si JWT_SECRET no está definido
 const app = express();
 const port = 5000;
 

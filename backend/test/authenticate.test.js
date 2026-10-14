@@ -3,8 +3,6 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const os = require('node:os');
-const fs = require('node:fs');
 const { spawnSync } = require('node:child_process');
 
 const SECRET = 'test-secret-only-for-unit-tests-0123456789abcdef';
@@ -92,13 +90,11 @@ test('token válido sin id utilizable -> 401 TOKEN_INVALID', async () => {
     assert.equal((await res.json()).code, 'TOKEN_INVALID');
 });
 
-test('sin JWT_SECRET el módulo de configuración falla al cargarse', () => {
-    const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sportanet-nodotenv-'));
-    const env = { ...process.env };
-    delete env.JWT_SECRET;
+test('JWT_SECRET vacío -> config/jwt.js lanza error (sin depender del filesystem ni de .env)', () => {
+    // dotenv no sobrescribe variables ya presentes en process.env (ni vacías),
+    // así que JWT_SECRET='' se mantiene aunque backend/.env tenga un valor.
     const r = spawnSync(process.execPath, ['-e', `require(${JSON.stringify(path.resolve(__dirname, '../config/jwt'))})`], {
-        cwd: emptyDir, // sin .env aquí
-        env,
+        env: { ...process.env, JWT_SECRET: '' },
         encoding: 'utf8'
     });
     assert.notEqual(r.status, 0);

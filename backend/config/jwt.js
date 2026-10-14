@@ -2,7 +2,8 @@
 // Configuración centralizada del secreto JWT.
 // - Carga .env (si existe) y exige JWT_SECRET.
 // - NO hay valor por defecto: si falta, el proceso falla al arrancar (fail-safe).
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const JWT_SECRET = process.env.JWT_SECRET;
 

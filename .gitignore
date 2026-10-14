@@ -32,3 +32,10 @@ desktop.ini
 # OneDrive / Windows
 $RECYCLE.BIN/
 *.lnk
+
+# Material de trabajo IA (solo local)
+AI_CONTEXT.md
+
+# Dumps de base de datos (no versionar)
+Base de Datos/
+*.sql

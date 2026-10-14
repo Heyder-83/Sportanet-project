@@ -4,6 +4,30 @@ Este archivo registra los cambios relevantes realizados en Sportanet, incluyendo
 
 El formato está inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). El versionado se organiza por fases de desarrollo para facilitar el seguimiento incremental del proyecto.
 
+## [Fase 1A.1] - 2026-10-14
+
+### Añadido
+- `DB_PORT` en `backend/.env.example` y en `backend/db/connection.js` (preparación para Railway).
+- `waitForConnections: true` en el pool de conexiones MySQL.
+
+### Cambiado
+- `backend/config/jwt.js` y `backend/db/connection.js` cargan el `.env` con path absoluto (`path.resolve(__dirname, '../.env')`), garantizando que se lea desde `backend/` sin importar el directorio de trabajo.
+- `backend/app.js` lee `process.env.PORT || 5000` en lugar de un puerto fijo (preparación para Render).
+- `backend/test/authenticate.test.js`: el test "sin JWT_SECRET" ahora se ejecuta con `JWT_SECRET: ''` en el entorno del subproceso, eliminando la dependencia del filesystem y del `.env` real.
+
+### Seguridad
+- El arranque del servidor falla con un error explícito si `JWT_SECRET` no está definido, sin valores por defecto inseguros.
+- Compatibilidad verificada con Node.js 24.11.1 (Claude había probado en Node 22).
+
+### Verificación
+- `npm test` pasa 9/9 tras los cambios.
+- Arranque end-to-end verificado con `curl`: `GET /api/auth/me` sin token devuelve `401 TOKEN_MISSING`.
+- Verificación manual del fail-safe: sin `.env`, el servidor falla al arrancar con `Error: JWT_SECRET no está definido`; los tests siguen pasando 9/9.
+- Verificación del puerto dinámico: el servidor respeta `PORT=5055` cuando se configura en `.env`.
+
+### Pendiente de verificar
+- Despliegue en Railway (base de datos) y Render (backend).
+- Migración del frontend a Render.
 
 
 ## [Fase 1A] - 2026-10-13

@@ -1,0 +1,16 @@
+# Forzar LF en el repositorio (evita warnings)
+* text=auto eol=lf
+
+# Excepciones (Windows-only)
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binarios (no tocar)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary

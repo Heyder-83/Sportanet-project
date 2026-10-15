@@ -20,6 +20,15 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/auth', require('./routes/auth'));
 
 // Server
+
+app.use((err, req, res, next) => {
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        return res.status(400).json({ error: "JSON malformado", code: "INVALID_JSON" });
+    }
+    console.error(err);
+    res.status(500).json({ error: "Error interno" });
+});
+
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });

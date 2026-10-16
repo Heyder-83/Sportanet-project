@@ -1,0 +1,95 @@
+# Sportanet — Contexto para desarrollo con IA
+
+## Objetivo
+Desarrollar incrementalmente el backend de Sportanet para gestionar usuarios, organizadores, eventos deportivos, inscripciones, confirmaciones y calendario.
+
+## Tecnologías
+- Frontend: HTML, CSS y JavaScript.
+- Backend: Node.js y Express.
+- Base de datos: MySQL.
+- Autenticación: bcrypt y JWT.
+
+## Estado inicial
+- `backend/app.js`: servidor Express y registro de rutas.
+- `backend/db/connection.js`: conexión a MySQL.
+- `backend/routes/auth.js`: registro e inicio de sesión.
+- `backend/routes/users.js`: CRUD de usuarios.
+- `events.html`: página de eventos con contenido estático.
+- No existen todavía rutas de eventos ni de inscripciones en el backend.
+
+## Reglas obligatorias
+1. No reconstruir el proyecto desde cero.
+2. No modificar funcionalidades terminadas salvo que sea indispensable y se justifique.
+3. No cambiar nombres de tablas, columnas, rutas o campos sin verificar el esquema real.
+4. Antes de escribir consultas SQL, revisar el esquema de base de datos seleccionado.
+5. No eliminar archivos ni dependencias sin autorización.
+6. No mostrar contraseñas, hashes, tokens ni secretos en respuestas o registros.
+7. Implementar únicamente la fase solicitada.
+8. Entregar los archivos modificados, los cambios realizados y las instrucciones para probarlos.
+9. Si falta información necesaria, preguntar antes de inventar estructuras.
+10. Si una prueba falla, corregir primero el problema de la tarea actual.
+
+## Esquema real de la base de datos (verificado)
+
+### Tabla `users`
+- `user_id` — int, PK, auto_increment
+- `full_name` — varchar(100), NOT NULL
+- `email` — varchar(100), NOT NULL, UNIQUE
+- `phone` — varchar(20), NULL, UNIQUE
+- `pwd` — varchar(255), NOT NULL (hash bcrypt; **el nombre canónico es `pwd`, no `password`**)
+- `role` — enum('Participant','Organizer','Admin'), NOT NULL, default 'Participant'
+- `is_active` — tinyint(1), NOT NULL, default 1
+- `deleted_at` — datetime, NULL (soft-delete)
+- `created_at` — datetime, NOT NULL, default CURRENT_TIMESTAMP
+- `updated_at` — datetime, NOT NULL, default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP
+
+**Notas:**
+- El PK se llama `user_id`, no `id`.
+- El campo de contraseña se llama `pwd` en BD, backend y frontend. La documentación previa decía `password`; está corregida.
+- El rol `Organizer` **ya existe en el esquema**. Falta definir cómo se asigna (endpoint o script) antes de la Fase 4.
+- El soft-delete (`is_active`, `deleted_at`) **ya existe en el esquema**. Verificar que el DELETE de `/api/users` lo use.
+
+## Estado de trabajo
+
+### Fases terminadas
+- **Fase 0** (fecha por confirmar): frontend estático + backend con registro/login.
+- **Fase 1A** (2026-10-13): Middleware de autenticación JWT, configuración centralizada (`config/jwt.js`), endpoint `/api/auth/me`, tests unitarios (9/9 con `node --test`), fail-safe si falta `JWT_SECRET`. Commit `8393ca5`.
+- **Fase 1A.1** (2026-10-14): Preparación para despliegue. `process.env.PORT || 5000` en `app.js`, `DB_PORT` en `connection.js`, path absoluto al `.env` (`path.resolve(__dirname, '../.env')`) en `config/jwt.js` y `connection.js`, test "sin JWT_SECRET" desacoplado del filesystem. Commit `75a60f5`.
+- **Fase 1B** (2026-10-15): Verificación de estado de cuenta en middleware. `authenticate.js` convertido a factory (`createAuthenticate({ findUserById })`), verifica `is_active` y `deleted_at` contra BD, añade códigos `ACCOUNT_DISABLED`, `ACCOUNT_DELETED`, `DB_ERROR`. Tests: **9 → 13**.
+
+### Estado actual del código
+- Backend: Node.js + Express 5 + MySQL2 + JWT (HS256) + bcrypt.
+- Tests: **13/13 pasando** en Node 24.11.1.
+- `npm audit`: 0 vulnerabilidades.
+- Preparado para despliegue en Railway (DB) + Render (backend + frontend).
+
+### Fase siguiente
+- Adaptar `app.js` para instanciar `createAuthenticate({ findUserById })` con `findUserById` respaldado por el pool de `db/connection.js`.
+- Ajustar `routes/auth.js` y `routes/users.js` si importan `authenticate` directamente.
+- Verificación manual: registrar usuario → `UPDATE users SET is_active = 0` → comprobar `401 ACCOUNT_DISABLED` → revertir.
+- Reorganización de estructura de carpetas (cosmética).
+- Creación de script `make-zip-for-claude.sh` (automatizar ZIP limpio para Claude).
+- Despliegue de base de datos en Railway.
+- Despliegue de backend en Render.
+- Migración de frontend a Render (según avance de Claude).
+
+### Errores conocidos / pendientes
+- CORS abierto (`Access-Control-Allow-Origin: *`) → restringir en producción.
+- Falta rate limiting en `/api/auth/login`.
+- Falta política de contraseña (mínimo 8 caracteres, complejidad).
+- El `.env` de la raíz y el de `backend/` están desalineados en PORT (raíz dice 3000, backend dice 5000). Revisar.
+- **Nuevo (Fase 1B):** el handler global de errores en `app.js` debe devolver JSON, no HTML con stacktrace, cuando el body es inválido. Verificar tras adaptar el middleware.
+- **Nuevo (Fase 1B):** auditar si `routes/users.js` (DELETE) usa soft-delete (`UPDATE deleted_at`) o hard-delete (`DELETE FROM`).
+
+## Formato obligatorio al finalizar cada tarea
+- Archivos creados.
+- Archivos modificados.
+- Funcionalidad implementada.
+- Endpoints y campos utilizados.
+- Pruebas ejecutadas y resultados reales.
+- Errores pendientes.
+- Comandos para ejecutar y probar.
+- Estado actualizado de las fases.
+- Siguiente tarea recomendada.
+
+No marques una tarea como terminada si no se ha comprobado su funcionamiento.

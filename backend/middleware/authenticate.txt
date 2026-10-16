@@ -1,0 +1,87 @@
+// pendiente de reemplazar authenticate.js
+
+// backend/middleware/authenticate.js
+// Middleware de autenticación JWT.
+// Verifica firma, expiración e identidad, y consulta el estado de la cuenta
+// (is_active / deleted_at) en la base de datos.
+//
+// Se exporta como factory para permitir inyectar la función de consulta a BD
+// y mantener los tests unitarios libres de MySQL.
+
+const jwt = require('jsonwebtoken');
+const { JWT_SECRET } = require('../config/jwt');
+
+function reject(res, code, message) {
+    res.set('WWW-Authenticate', 'Bearer');
+    return res.status(401).json({ error: message, code });
+}
+
+/**
+ * Crea el middleware de autenticación.
+ *
+ * @param {object} deps
+ * @param {(userId: number) => Promise<{ is_active: number|boolean, deleted_at: Date|null } | null>} deps.findUserById
+ *        Función que busca un usuario por su id. Debe devolver null si no existe.
+ * @returns {import('express').RequestHandler}
+ */
+function createAuthenticate({ findUserById }) {
+    if (typeof findUserById !== 'function') {
+        throw new Error('createAuthenticate requiere findUserById');
+    }
+
+    return async function authenticate(req, res, next) {
+        const header = req.headers.authorization;
+
+        if (!header) {
+            return reject(res, 'TOKEN_MISSING', 'Authentication token required');
+        }
+
+        const parts = header.split(' ');
+        if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer' || !parts[1]) {
+            return reject(res, 'TOKEN_MALFORMED', 'Authorization header must be: Bearer <token>');
+        }
+
+        let payload;
+        try {
+            payload = jwt.verify(parts[1], JWT_SECRET, { algorithms: ['HS256'] });
+        } catch (err) {
+            if (err.name === 'TokenExpiredError') {
+                return reject(res, 'TOKEN_EXPIRED', 'Token expired');
+            }
+            return reject(res, 'TOKEN_INVALID', 'Invalid token');
+        }
+
+        // El payload emitido por auth.js es { id, email }, donde id = users.user_id.
+        const userId = Number(payload.id);
+        if (!Number.isInteger(userId) || userId <= 0) {
+            return reject(res, 'TOKEN_INVALID', 'Invalid token');
+        }
+
+        // Verificación del estado de la cuenta en BD.
+        let user;
+        try {
+            user = await findUserById(userId);
+        } catch (err) {
+            console.error('authenticate: error consultando usuario', err);
+            return res.status(500).json({ error: 'Internal error', code: 'DB_ERROR' });
+        }
+
+        if (!user) {
+            // El usuario ya no existe: el token es válido criptográficamente pero
+            // no corresponde a ninguna cuenta.
+            return reject(res, 'TOKEN_INVALID', 'Invalid token');
+        }
+        if (user.deleted_at !== null && user.deleted_at !== undefined) {
+            return reject(res, 'ACCOUNT_DELETED', 'Account has been deleted');
+        }
+        if (Number(user.is_active) !== 1) {
+            return reject(res, 'ACCOUNT_DISABLED', 'Account is disabled');
+        }
+
+        // Identidad establecida por el servidor. Nunca se toma del cliente.
+        req.auth = { userId, email: payload.email };
+        next();
+    };
+}
+
+module.exports = createAuthenticate;

@@ -1,0 +1,53 @@
+// Pendiente de añadir
+
+Cambio 1 — Sección 2 (Tecnologías)
+Buscar:
+
+Seguridad de contraseñas: bcrypt.
+
+Reemplazar por:
+
+Seguridad de contraseñas: bcrypt.
+
+Nombre del campo de contraseña en BD, backend y frontend: pwd (no password).
+
+Cambio 2 — Sección 4 (Registro, inicio de sesión y cuentas)
+Buscar:
+
+Las contraseñas deben almacenarse mediante bcrypt, nunca en texto plano.
+
+Reemplazar por:
+
+Las contraseñas deben almacenarse mediante bcrypt en la columna pwd, nunca en texto plano. El nombre canónico del campo es pwd; cualquier referencia previa a password en documentación está obsoleta.
+
+Añadir al final de la sección 4:
+
+El middleware de autenticación debe verificar, además de la firma y expiración del JWT, el estado de la cuenta en base de datos. Los usuarios con is_active = 0 o deleted_at no nulo deben ser rechazados con 401, incluso si su token sigue siendo criptográficamente válido.
+
+Cambio 3 — Sección 3 (Tipos de usuario y permisos)
+Añadir al final de la sección 3.3 (Administrador):
+
+El rol Organizer ya existe en el esquema (users.role) con el valor 'Organizer'. La forma de asignación (endpoint administrativo o script) está pendiente de definición y debe documentarse antes de implementar la creación de eventos.
+
+Cambio 4 — Sección 5.1 (Información de un evento) — Nota de estado
+Añadir al inicio de la sección 5.1:
+
+Estado actual: las tablas de eventos e inscripciones aún no han sido verificadas contra el esquema real. Antes de implementar cualquier campo, ejecutar SHOW TABLES; y DESCRIBE sobre las tablas correspondientes. Si no existen, proponer el schema y esperar autorización.
+
+Cambio 5 — Sección 15 (Orden de implementación) — actualizar estado
+Buscar:
+
+Auditar y validar el estado real del proyecto y de MySQL.
+
+Proteger autenticación y operaciones de usuarios.
+
+Reemplazar por:
+
+✅ Auditar y validar el estado real del proyecto y de MySQL.
+
+✅ Proteger autenticación (Fase 1A + 1A.1 + 1B). Pendiente: auditar operaciones de usuarios (/api/users) para evitar que un usuario pueda leer/editar/borrar a otro.
+
+(Los demás puntos del 3 al 10 quedan sin tocar.)
+
+Cambio 6 — Sección 16 (Criterio de finalización)
+Sin cambios. Sigue siendo válida tal cual.

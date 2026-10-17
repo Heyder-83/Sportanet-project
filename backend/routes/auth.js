@@ -6,7 +6,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const { JWT_SECRET } = require('../config/jwt'); // sin secreto por defecto: falla si falta JWT_SECRET
-const authenticate = require('../middleware/authenticate');
+const authenticate = require('../middleware/requireAuth'); // authenticate ya conectado a la BD (verifica is_active/deleted_at)
 
 // Creacion de usuario (REGISTER):
 // - Recibe full_name, email, phone, pwd
@@ -93,6 +93,15 @@ router.post('/login', (req, res) => {
                 return res.status(401).json({ error: 'Invalid credentials' });
             }
 
+            // Credenciales correctas pero cuenta no habilitada: no se emite token.
+            // Se comprueba DESPUÉS de bcrypt para no revelar el estado de cuentas ajenas.
+            if (user.deleted_at) {
+                return res.status(403).json({ error: 'Account no longer exists', code: 'ACCOUNT_DELETED' });
+            }
+            if (Number(user.is_active) !== 1) {
+                return res.status(403).json({ error: 'Account is disabled', code: 'ACCOUNT_DISABLED' });
+            }
+
             // Generar token JWT (emisión tras autenticación correcta)
             const token = jwt.sign(
                 { id: user.user_id, email: user.email },
@@ -115,10 +124,10 @@ router.post('/login', (req, res) => {
 });
 
 // Verificación de sesión (GET /api/auth/me):
-// - Ruta protegida mínima para probar el middleware. No consulta la base de datos.
-// - Devuelve solo la identidad contenida en el token validado.
+// - Ruta protegida mínima para probar el middleware.
+// - El middleware ya consultó la cuenta en la BD (activa y no eliminada); aquí solo se devuelve su identidad.
 router.get('/me', authenticate, (req, res) => {
-    res.json({ id: req.auth.userId, email: req.auth.email });
+    res.json({ id: req.auth.userId, email: req.auth.email, role: req.auth.role });
 });
 
 module.exports = router;

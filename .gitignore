@@ -11,6 +11,7 @@ node_modules/
 .env.local
 .env.*.local
 *.env
+.env.test
 
 # ============================================================
 # Backups y temporales
@@ -19,6 +20,7 @@ node_modules/
 *.bak-*
 *~
 *.swp
+Changes_Imp/
 
 # ============================================================
 # Logs y trabajo local

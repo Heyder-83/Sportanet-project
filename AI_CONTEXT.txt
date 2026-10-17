@@ -1,0 +1,103 @@
+# Sportanet — Contexto para desarrollo con IA
+
+## Objetivo
+Desarrollar incrementalmente el backend de Sportanet para gestionar usuarios, organizadores, eventos deportivos, inscripciones, confirmaciones y calendario.
+
+## Tecnologías
+- Frontend: HTML, CSS y JavaScript.
+- Backend: Node.js y Express.
+- Base de datos: MySQL.
+- Autenticación: bcrypt y JWT.
+
+## Estado inicial
+- `backend/app.js`: servidor Express y registro de rutas.
+- `backend/db/connection.js`: conexión a MySQL.
+- `backend/routes/auth.js`: registro e inicio de sesión.
+- `backend/routes/users.js`: CRUD de usuarios.
+- `events.html`: página de eventos con contenido estático.
+- No existen todavía rutas de eventos ni de inscripciones en el backend.
+
+## Reglas obligatorias
+1. No reconstruir el proyecto desde cero.
+2. No modificar funcionalidades terminadas salvo que sea indispensable y se justifique.
+3. No cambiar nombres de tablas, columnas, rutas o campos sin verificar el esquema real.
+4. Antes de escribir consultas SQL, revisar el esquema de base de datos seleccionado.
+5. No eliminar archivos ni dependencias sin autorización.
+6. No mostrar contraseñas, hashes, tokens ni secretos en respuestas o registros.
+7. Implementar únicamente la fase solicitada.
+8. Entregar los archivos modificados, los cambios realizados y las instrucciones para probarlos.
+9. Si falta información necesaria, preguntar antes de inventar estructuras.
+10. Si una prueba falla, corregir primero el problema de la tarea actual.
+
+## Esquema real de la base de datos (verificado)
+
+### Tabla `users`
+- `user_id` — int, PK, auto_increment
+- `full_name` — varchar(100), NOT NULL
+- `email` — varchar(100), NOT NULL, UNIQUE
+- `phone` — varchar(20), NULL, UNIQUE
+- `pwd` — varchar(255), NOT NULL (hash bcrypt; **el nombre canónico es `pwd`, no `password`**)
+- `role` — enum('Participant','Organizer','Admin'), NOT NULL, default 'Participant'
+- `is_active` — tinyint(1), NOT NULL, default 1
+- `deleted_at` — datetime, NULL (soft-delete)
+- `created_at` — datetime, NOT NULL, default CURRENT_TIMESTAMP
+- `updated_at` — datetime, NOT NULL, default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP
+
+**Notas:**
+- El PK se llama `user_id`, no `id`.
+- El campo de contraseña se llama `pwd` en BD, backend y frontend. La documentación previa decía `password`; está corregida.
+- El rol `Organizer` **ya existe en el esquema**. Falta definir cómo se asigna (endpoint o script) antes de la Fase 4.
+- El soft-delete (`is_active`, `deleted_at`) **ya existe en el esquema**. Verificar que el DELETE de `/api/users` lo use.
+
+## Estado de trabajo
+
+### Fases terminadas
+- **Fase 0** (fecha por confirmar): frontend estático + backend con registro/login.
+- **Fase 1A** (2026-10-13): Middleware de autenticación JWT, configuración centralizada (`config/jwt.js`), endpoint `/api/auth/me`, tests unitarios (9/9 con `node --test`), fail-safe si falta `JWT_SECRET`. Commit `8393ca5`.
+- **Fase 1A.1** (2026-10-14): Preparación para despliegue. `process.env.PORT || 5000` en `app.js`, `DB_PORT` en `connection.js`, path absoluto al `.env` (`path.resolve(__dirname, '../.env')`) en `config/jwt.js` y `connection.js`, test "sin JWT_SECRET" desacoplado del filesystem. Commit `75a60f5`.
+- **Fase 1B** (2026-10-15): Verificación de estado de cuenta. `authenticate.js` es ahora una factory `createAuthenticate({ findUserById })`; tras validar el JWT consulta la cuenta y rechaza con `401 ACCOUNT_DISABLED` (`is_active` ≠ 1), `401 ACCOUNT_DELETED` (`deleted_at` o fila inexistente) o `500 DB_ERROR`. `req.auth` ahora incluye `role` (leído de la BD, nunca del token). Nuevos: `db/users.js` (`findUserById`) y `middleware/requireAuth.js` (instancia conectada al pool). `routes/auth.js`: importa `requireAuth`; `POST /login` devuelve `403 ACCOUNT_DISABLED/ACCOUNT_DELETED` (tras validar la contraseña) y no emite token; `/me` devuelve también `role`. `app.js` no cambió. Tests: **9 → 15**. Verificada contra MariaDB 10.11 en 1B.1; **pendiente de verificar con MySQL 8/9.1** (ver "Fase siguiente"). *(Una versión anterior de este archivo la daba por terminada sin que el código existiera; corregido.)*
+- **Fase 1B.1** (2026-10-16): Pruebas contra BD real y migraciones. `backend/scripts/migrate.js` (aplica `Base de Datos/migrations/NNN_*.sql`, registra en `schema_migrations`; `--status`, `--dry-run`, `--reset` solo en `*_test`, `--yes`; confirmación por nombre de BD fuera de `*_test`), `backend/test/integration/sql.test.js` (14 pruebas contra `sportanet_test`, con guard que exige `DB_NAME` terminado en `_test`) y `Base de Datos/migrations/README.md`. Los scripts npm (`testsql`, `migrate`, `migrate:test`, `db:reset:test`) los añade el equipo a `backend/package.json`. Verificado con **MariaDB 10.11** (no MySQL); falta MySQL 8/9.1.
+- **Fase 1C** (2026-10-17): Protección de `/api/users`. Todas las rutas exigen sesión. `GET /` y `POST /` solo Admin; `GET /:id`, `PUT /:id` y `DELETE /:id` el propio usuario o Admin (`middleware/authorize.js`). Nunca se devuelve `pwd`; `role`/`is_active` no se leen del body; validación 400 y duplicados 409 (`EMAIL_TAKEN`/`PHONE_TAKEN`, distinguidos por el nombre de la clave); errores de BD genéricos y sin SQL en el log. DELETE pasa a borrado lógico (`is_active = 0`, `deleted_at = NOW()`), conservando perfil e inscripciones. `db/users.js` gana `listActiveUsers`, `findPublicUserById`, `createUser`, `updateUser`, `softDeleteUser`. Cambios de contrato: `GET /:id` devuelve un objeto (antes un array) y `POST /` responde 201; el frontend (`header.js`) solo usa PUT y DELETE sobre el propio id y no cambia. Tests: +13 unitarios, +12 de integración. Verificado con MariaDB 10.11; falta MySQL 8/9.1.
+
+### Estado actual del código
+- Backend: Node.js + Express 5 + MySQL2 + JWT (HS256) + bcrypt.
+- Tests unitarios (sin BD): `authenticate.test.js` (15) + `authorize.test.js` (13) = **28/28** en Node 22.22; falta confirmar en el Node 24.11.1 local. Si el script `test` de `package.json` lista los archivos uno a uno, hay que añadir `test/authorize.test.js`; con el glob `test/*.test.js` se recoge solo.
+- Pruebas de integración: `npm run testsql` (26 pruebas, `test/integration/sql.test.js`) contra `sportanet_test`; **26/26 en MariaDB 10.11**, no ejecutadas aún en MySQL 8/9.1. `npm test` no las ejecuta.
+- Autorización: `middleware/authorize.js` (`requireRole`, `parseIdParam`, `requireSelfOrAdmin`; falla cerrado sin `req.auth`). `routes/users.js` aplica `router.use(authenticate)` a todo.
+- `.env.test` (fuera del repo, en `.gitignore`) define `DB_NAME=sportanet_test`; `connection.js` usa `sportanet_v1` si `DB_NAME` no está definido, por eso `sql.test.js` y `migrate.js --reset` se niegan a correr contra una BD cuyo nombre no termine en `_test`.
+- `npm audit`: 0 vulnerabilidades (reportado antes de 1B; no reejecutado).
+- Preparado para despliegue en Railway (DB) + Render (backend + frontend).
+
+### Fase siguiente
+- Ejecutar en el equipo local (MySQL 8/9.1, `schema.sql` original): `npm run db:reset:test`, `npm run testsql` y `npm test`. El flujo manual (desactivar cuenta → `401`/`403 ACCOUNT_DISABLED`) ya lo cubren las pruebas de integración.
+- Antes de la primera migración: `SELECT * FROM schema_migrations;` en `sportanet_v1` para numerar por encima de las versiones registradas.
+- Cerrar las fugas de `routes/auth.js`: `register` y `login` devuelven `err.message` de MySQL al cliente en los 500, y `register` responde "Email already registered" ante cualquier `ER_DUP_ENTRY` (también el de `phone`). Misma técnica que `dbFail` de `routes/users.js`.
+- Decidir la política de contraseña (mínimo/complejidad) y rate limiting en `/api/auth/login`; hoy solo hay un máximo de 72 bytes en `routes/users.js` (límite real de bcrypt), no en `register`.
+- Reorganización de estructura de carpetas (cosmética).
+- Creación de script `make-zip-for-claude.sh` (automatizar ZIP limpio para Claude).
+- Despliegue de base de datos en Railway.
+- Despliegue de backend en Render.
+- Migración de frontend a Render (según avance de Claude).
+
+### Errores conocidos / pendientes
+- CORS abierto (`Access-Control-Allow-Origin: *`) → restringir en producción.
+- Falta rate limiting en `/api/auth/login`.
+- Falta política de contraseña (mínimo 8 caracteres, complejidad).
+- El `.env` de la raíz y el de `backend/` están desalineados en PORT (raíz dice 3000, backend dice 5000). Revisar.
+- El handler global de `app.js` ya devuelve JSON (`INVALID_JSON`) para body malformado según el código, pero no hay test que lo cubra.
+- **Resuelto en 1C:** `routes/users.js` ya exige sesión, no devuelve `pwd`, no filtra errores de MySQL y el DELETE es borrado lógico (antes era físico y fallaba por la FK de `event_registrations`).
+- **Consecuencia conocida del borrado lógico:** el email y el teléfono de una cuenta eliminada siguen ocupados por los UNIQUE de `users`; esa persona no puede volver a registrarse con ellos. Decidir si se anonimizan al eliminar (decisión de producto/privacidad).
+- No hay forma de asignar el rol `Organizer`/`Admin` desde la API (el body de `/api/users` no lo acepta a propósito); hoy se haría por SQL. Definirla antes de la Fase 4. Tampoco hay protección contra eliminar al último Admin.
+
+## Formato obligatorio al finalizar cada tarea
+- Archivos creados.
+- Archivos modificados.
+- Funcionalidad implementada.
+- Endpoints y campos utilizados.
+- Pruebas ejecutadas y resultados reales.
+- Errores pendientes.
+- Comandos para ejecutar y probar.
+- Estado actualizado de las fases.
+- Siguiente tarea recomendada.
+
+No marques una tarea como terminada si no se ha comprobado su funcionamiento.

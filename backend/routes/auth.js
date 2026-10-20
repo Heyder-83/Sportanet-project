@@ -1,126 +1,113 @@
 // backend/routes/auth.js
+// Registro, inicio de sesión y verificación de sesión.
+//
+//   POST /api/auth/register  full_name, email, phone, pwd  -> crea una cuenta Participant y emite un JWT
+//   POST /api/auth/login     email, pwd                    -> emite un JWT si las credenciales y la cuenta son válidas
+//   GET  /api/auth/me        (requiere sesión)             -> identidad leída de la BD
+//
+// - Todo lo que llega en el body se valida (tipo, longitud y formato) ANTES de tocar bcrypt o la BD.
+// - Solo se leen los campos conocidos; role e is_active nunca salen del body (los privilegios no se
+//   conceden desde el formulario público: PROJECT_LOGIC §3.3).
+// - Los errores de BD no llegan al cliente (utils/dbFail.js): duplicados 409 con código; el resto, 500 genérico.
 const express = require('express');
-const router = express.Router();
-const pool = require('../db/connection');
+const crypto = require('node:crypto');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+const router = express.Router();
 const { JWT_SECRET } = require('../config/jwt'); // sin secreto por defecto: falla si falta JWT_SECRET
 const authenticate = require('../middleware/requireAuth'); // authenticate ya conectado a la BD (verifica is_active/deleted_at)
+const users = require('../db/users');
+const { validateBody, validateLogin, badRequest } = require('../utils/userInput');
+const dbFail = require('../utils/dbFail');
+
+const BCRYPT_ROUNDS = 10;
+
+// Hash de una contraseña aleatoria que nadie conoce. Cuando el correo del login no existe se compara contra
+// él para que la respuesta tarde lo mismo que con un correo registrado: si no, el tiempo de respuesta
+// revelaría qué correos tienen cuenta. Debe usar el mismo coste (BCRYPT_ROUNDS) que los hashes reales.
+const DUMMY_HASH = bcrypt.hashSync(crypto.randomBytes(24).toString('hex'), BCRYPT_ROUNDS);
+
+const issueToken = (userId, email) => jwt.sign({ id: userId, email }, JWT_SECRET, { expiresIn: '7d' });
 
 // Creacion de usuario (REGISTER):
-// - Recibe full_name, email, phone, pwd
+// - Recibe full_name, email, phone, pwd (los cuatro obligatorios y válidos; ver utils/userInput.js)
 // - Hashea la contraseña con bcrypt
-// - Inserta el usuario en la base de datos
+// - Inserta el usuario con el rol y el estado por defecto del esquema (Participant, activo)
 // - Genera y devuelve un JWT junto al objeto usuario
+// - Email o teléfono ya registrados: 409 EMAIL_TAKEN / PHONE_TAKEN (la restricción UNIQUE de la BD decide,
+//   también cuando dos registros idénticos llegan a la vez)
 router.post('/register', async (req, res) => {
-    const { full_name, email, phone, pwd } = req.body;
-
-    if (!full_name || !email || !phone || !pwd) {
-        return res.status(400).json({ error: 'Missing fields' });
-    }
+    const { data, invalid } = validateBody(req.body, { requireAll: true });
+    if (invalid.length) return badRequest(res, invalid);
 
     try {
-        const hashedPwd = await bcrypt.hash(pwd, 10);
-
-        const userData = {
-            full_name,
-            email,
-            phone,
-            pwd: hashedPwd
-        };
-
-        pool.query('INSERT INTO users SET ?', userData, (err, result) => {
-            if (err) {
-                // Manejar error de email duplicado
-                if (err.code === 'ER_DUP_ENTRY') {
-                    return res.status(400).json({ error: 'Email already registered' });
-                }
-                return res.status(500).json({ error: err.message });
-            }
-
-            // Generar token JWT (emisión)
-            // Payload mínimo: id y email. El token permite que el cliente se autentique en peticiones posteriores.
-            const token = jwt.sign(
-                { id: result.insertId, email },
-                JWT_SECRET,
-                { expiresIn: '7d' }
-            );
-
-            res.json({
-                message: 'User registered successfully',
-                token,
-                user: {
-                    id: result.insertId,
-                    full_name,
-                    email,
-                    phone
-                }
-            });
+        const pwdHash = await bcrypt.hash(data.pwd, BCRYPT_ROUNDS);
+        const userId = await users.createUser({
+            full_name: data.full_name,
+            email: data.email,
+            phone: data.phone,
+            pwdHash
         });
 
-    } catch (error) {
-        res.status(500).json({ error: 'Error encrypting password' });
+        res.json({
+            message: 'User registered successfully',
+            // Payload mínimo: id y email. El token permite que el cliente se autentique en peticiones posteriores.
+            token: issueToken(userId, data.email),
+            user: {
+                id: userId,
+                full_name: data.full_name,
+                email: data.email,
+                phone: data.phone
+            }
+        });
+    } catch (err) {
+        dbFail(err, res, 'auth');
     }
 });
 
 // Inicio de sesión (LOGIN):
-// - Recibe email y pwd
-// - Busca usuario por email, compara hash con bcrypt
-// - Si coincide, genera y devuelve JWT y datos públicos del usuario
-router.post('/login', (req, res) => {
-    const { email, pwd } = req.body;
-
-    if (!email || !pwd) {
-        return res.status(400).json({ error: 'Missing email or password' });
+// - Recibe email y pwd (texto no vacío; cualquier otro tipo es 400)
+// - Busca usuario por email y compara el hash con bcrypt (siempre se ejecuta una comparación)
+// - Si coincide y la cuenta está habilitada, genera y devuelve JWT y datos públicos del usuario
+router.post('/login', async (req, res) => {
+    const creds = validateLogin(req.body);
+    if (!creds) {
+        return res.status(400).json({ error: 'Missing email or password', code: 'VALIDATION_ERROR' });
     }
 
-    pool.query(
-        'SELECT * FROM users WHERE email = ?',
-        [email],
-        async (err, rows) => {
-            if (err) return res.status(500).json({ error: err.message });
+    try {
+        const user = await users.findAuthUserByEmail(creds.email);
 
-            if (rows.length === 0) {
-                return res.status(401).json({ error: 'Invalid credentials' });
-            }
-
-            const user = rows[0];
-
-            // Comparar contraseñas usando bcrypt
-            const match = await bcrypt.compare(pwd, user.pwd);
-            if (!match) {
-                return res.status(401).json({ error: 'Invalid credentials' });
-            }
-
-            // Credenciales correctas pero cuenta no habilitada: no se emite token.
-            // Se comprueba DESPUÉS de bcrypt para no revelar el estado de cuentas ajenas.
-            if (user.deleted_at) {
-                return res.status(403).json({ error: 'Account no longer exists', code: 'ACCOUNT_DELETED' });
-            }
-            if (Number(user.is_active) !== 1) {
-                return res.status(403).json({ error: 'Account is disabled', code: 'ACCOUNT_DISABLED' });
-            }
-
-            // Generar token JWT (emisión tras autenticación correcta)
-            const token = jwt.sign(
-                { id: user.user_id, email: user.email },
-                JWT_SECRET,
-                { expiresIn: '7d' }
-            );
-
-            res.json({
-                message: 'Login successful',
-                token,
-                user: {
-                    id: user.user_id,
-                    full_name: user.full_name,
-                    email: user.email,
-                    phone: user.phone
-                }
-            });
+        // Comparar contraseñas usando bcrypt (contra un hash falso si el correo no existe)
+        const match = await bcrypt.compare(creds.pwd, user ? user.pwd : DUMMY_HASH);
+        if (!user || !match) {
+            return res.status(401).json({ error: 'Invalid credentials' });
         }
-    );
+
+        // Credenciales correctas pero cuenta no habilitada: no se emite token.
+        // Se comprueba DESPUÉS de bcrypt para no revelar el estado de cuentas ajenas.
+        if (user.deleted_at) {
+            return res.status(403).json({ error: 'Account no longer exists', code: 'ACCOUNT_DELETED' });
+        }
+        if (Number(user.is_active) !== 1) {
+            return res.status(403).json({ error: 'Account is disabled', code: 'ACCOUNT_DISABLED' });
+        }
+
+        // Generar token JWT (emisión tras autenticación correcta)
+        res.json({
+            message: 'Login successful',
+            token: issueToken(user.user_id, user.email),
+            user: {
+                id: user.user_id,
+                full_name: user.full_name,
+                email: user.email,
+                phone: user.phone
+            }
+        });
+    } catch (err) {
+        dbFail(err, res, 'auth');
+    }
 });
 
 // Verificación de sesión (GET /api/auth/me):

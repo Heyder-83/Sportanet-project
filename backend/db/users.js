@@ -24,6 +24,17 @@ async function findUserById(userId) {
     return rows[0] || null;
 }
 
+// Credenciales para el login. ÚNICA función que devuelve `pwd` (el hash bcrypt), y solo para compararlo en
+// routes/auth.js: nunca debe copiarse a una respuesta. Incluye cuentas desactivadas o eliminadas porque el
+// login responde distinto en cada caso (después de comprobar la contraseña). Devuelve la fila o null.
+async function findAuthUserByEmail(email) {
+    const [rows] = await db().query(
+        'SELECT user_id, full_name, email, phone, pwd, is_active, deleted_at FROM users WHERE email = ?',
+        [email]
+    );
+    return rows[0] || null;
+}
+
 // Usuarios no eliminados (los desactivados aparecen, con is_active = 0).
 async function listActiveUsers() {
     const [rows] = await db().query(
@@ -75,6 +86,7 @@ async function softDeleteUser(userId) {
 
 module.exports = {
     findUserById,
+    findAuthUserByEmail,
     listActiveUsers,
     findPublicUserById,
     createUser,

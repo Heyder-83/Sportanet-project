@@ -16,68 +16,13 @@ const router = express.Router();
 const authenticate = require('../middleware/requireAuth');
 const { ROLES, requireRole, parseIdParam, requireSelfOrAdmin } = require('../middleware/authorize');
 const users = require('../db/users');
+const { validateBody, badRequest } = require('../utils/userInput');
+const sharedDbFail = require('../utils/dbFail');
 
 router.use(authenticate);
 
-// ---------------------------------------------------------------------------
-// Validación (mismas reglas de formato de email que el frontend)
-// ---------------------------------------------------------------------------
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const isString = (v) => typeof v === 'string';
-
-const validators = {
-    full_name: (v) => isString(v) && v.trim().length >= 1 && v.trim().length <= 100,
-    email: (v) => isString(v) && v.trim().length <= 100 && EMAIL_RE.test(v.trim()),
-    phone: (v) => isString(v) && v.trim().length >= 1 && v.trim().length <= 20,
-    // bcrypt ignora en silencio todo lo que pase de 72 bytes: se rechaza en lugar de truncar.
-    pwd: (v) => isString(v) && v.length >= 1 && Buffer.byteLength(v, 'utf8') <= 72
-};
-
-// Devuelve { data, invalid }. Con requireAll todos los campos son obligatorios (creación);
-// si no, solo se validan los presentes. Compatibilidad con la versión anterior: en una
-// actualización, pwd vacío o null significa "no cambiar la contraseña".
-function validateBody(body, { requireAll }) {
-    const src = body && typeof body === 'object' ? body : {};
-    const data = {};
-    const invalid = [];
-
-    for (const field of ['full_name', 'email', 'phone', 'pwd']) {
-        let value = src[field];
-        if (field === 'pwd' && !requireAll && (value === '' || value === null)) value = undefined;
-        if (value === undefined) {
-            if (requireAll) invalid.push(field);
-            continue;
-        }
-        if (!validators[field](value)) {
-            invalid.push(field);
-            continue;
-        }
-        data[field] = field === 'pwd' ? value : value.trim();
-    }
-    return { data, invalid };
-}
-
-function badRequest(res, invalid) {
-    return res.status(400).json({
-        error: `Invalid or missing fields: ${invalid.join(', ')}`,
-        code: 'VALIDATION_ERROR',
-        fields: invalid
-    });
-}
-
-// Errores de BD: duplicados con mensaje claro; el resto se registra SIN el SQL (el objeto de error de
-// mysql2 incluye la consulta con los valores, p. ej. el hash) y al cliente le llega un mensaje genérico.
-function dbFail(err, res) {
-    if (err && err.code === 'ER_DUP_ENTRY') {
-        // Se mira el NOMBRE de la clave, no el texto: un email como "phone@x.com" también contiene "phone".
-        const key = ((String(err.sqlMessage || '').match(/for key '([^']+)'/) || [])[1]) || '';
-        if (/(^|\.)email$/.test(key)) return res.status(409).json({ error: 'Email already registered', code: 'EMAIL_TAKEN' });
-        if (/(^|\.)phone$/.test(key)) return res.status(409).json({ error: 'Phone already registered', code: 'PHONE_TAKEN' });
-        return res.status(409).json({ error: 'Duplicate value', code: 'DUPLICATE' });
-    }
-    console.error('[users] error de BD:', err && err.code ? err.code : 'sin código');
-    return res.status(500).json({ error: 'Internal error', code: 'DB_ERROR' });
-}
+// Validación y errores de BD compartidos con routes/auth.js (utils/).
+const dbFail = (err, res) => sharedDbFail(err, res, 'users');
 
 const notFound = (res) => res.status(404).json({ error: 'User not found', code: 'NOT_FOUND' });
 

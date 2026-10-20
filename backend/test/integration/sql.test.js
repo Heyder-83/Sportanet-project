@@ -181,11 +181,13 @@ test('register guarda el hash bcrypt (no la contraseña) con role y estado por d
     assert.equal(row.deleted_at, null);
 });
 
-test('register con email repetido -> 400 (UNIQUE real de users.email)', async () => {
+test('register con email repetido -> 409 EMAIL_TAKEN (UNIQUE real de users.email)', async () => {
     const { creds } = await registerUser();
     const again = await post('/api/auth/register', { ...creds, phone: `7${unique()}`.slice(0, 20) });
-    assert.equal(again.status, 400);
-    assert.equal((await again.json()).error, 'Email already registered');
+    assert.equal(again.status, 409); // antes 400 (Fase 1D: mismo criterio que /api/users)
+    const body = await again.json();
+    assert.equal(body.error, 'Email already registered');
+    assert.equal(body.code, 'EMAIL_TAKEN');
 });
 
 test('login correcto -> token que /me acepta con id, email y role', async () => {
@@ -469,7 +471,8 @@ test('DELETE /api/users/:id propio: borrado lógico; el token y el login dejan d
 
     // Consecuencia conocida: el email sigue reservado por el UNIQUE.
     const again = await post('/api/auth/register', { ...creds, phone: `4${unique()}`.slice(0, 20) });
-    assert.equal(again.status, 400);
+    assert.equal(again.status, 409);
+    assert.equal((await again.json()).code, 'EMAIL_TAKEN');
 });
 
 test('DELETE /api/users/:id ajeno -> 403 sin efecto; Admin sí; ya eliminado -> 404', async () => {
@@ -502,4 +505,143 @@ test('DELETE de un usuario con inscripciones funciona y conserva la inscripción
     assert.equal(res.status, 200);
     const [regs] = await q('SELECT registration_status FROM event_registrations WHERE user_id = ?', [participant.id]);
     assert.equal(regs.length, 1);
+});
+
+// ---------------------------------------------------------------------------
+// Fase 1D: seguridad de /api/auth (register / login) contra la BD real
+// ---------------------------------------------------------------------------
+
+const countUsers = async (email) => (await q('SELECT COUNT(*) AS n FROM users WHERE email = ?', [email]))[0][0].n;
+
+test('register con teléfono repetido -> 409 PHONE_TAKEN (antes respondía "Email already registered")', async () => {
+    const { creds } = await registerUser();
+    const again = await post('/api/auth/register', { ...creds, email: `sqltest-${unique()}@example.test` }); // mismo phone
+    assert.equal(again.status, 409);
+    assert.deepEqual(await again.json(), { error: 'Phone already registered', code: 'PHONE_TAKEN' });
+});
+
+test('register: un correo que contiene la palabra "phone" repetido sigue siendo EMAIL_TAKEN', async () => {
+    const email = `sqltest-phone-${unique()}@example.test`;
+    const n = unique();
+    const first = await post('/api/auth/register', { full_name: 'Uno', email, phone: `5${n}`.slice(0, 20), pwd: 'Clave-de-prueba-123' });
+    assert.equal(first.status, 200);
+    const again = await post('/api/auth/register', { full_name: 'Dos', email, phone: `6${unique()}`.slice(0, 20), pwd: 'Clave-de-prueba-123' });
+    assert.equal(again.status, 409);
+    assert.equal((await again.json()).code, 'EMAIL_TAKEN');
+});
+
+test('register: dos solicitudes idénticas simultáneas -> una crea la cuenta y la otra recibe 409 (decide el UNIQUE de la BD)', async () => {
+    const n = unique();
+    const email = `sqltest-${n}@example.test`;
+    const body = (phone) => ({ full_name: 'Carrera', email, phone, pwd: 'Clave-de-prueba-123' });
+    const [a, b] = await Promise.all([
+        post('/api/auth/register', body(`5${n}`.slice(0, 20))),
+        post('/api/auth/register', body(`6${n}`.slice(0, 20)))
+    ]);
+    assert.deepEqual([a.status, b.status].sort(), [200, 409]);
+    assert.equal(await countUsers(email), 1);
+});
+
+test('register ignora role, is_active, user_id y deleted_at del body: la cuenta queda Participant y activa', async () => {
+    const n = unique();
+    const email = `sqltest-${n}@example.test`;
+    const res = await post('/api/auth/register', {
+        full_name: 'Intento', email, phone: `5${n}`.slice(0, 20), pwd: 'Clave-de-prueba-123',
+        role: 'Admin', is_active: 0, user_id: 1, deleted_at: '2020-01-01 00:00:00'
+    });
+    assert.equal(res.status, 200);
+    const { user } = await res.json();
+    assert.notEqual(user.id, 1);
+    const row = (await q('SELECT user_id, role, is_active, deleted_at FROM users WHERE email = ?', [email]))[0][0];
+    assert.equal(row.user_id, user.id);
+    assert.equal(row.role, 'Participant');
+    assert.equal(row.is_active, 1);
+    assert.equal(row.deleted_at, null);
+});
+
+test('register con valores fuera de los límites de las columnas -> 400 de validación, no un 500 de MySQL con el nombre de la columna', async () => {
+    const n = unique();
+    const email = `sqltest-${n}@example.test`;
+    for (const over of [{ full_name: 'x'.repeat(101) }, { phone: '1'.repeat(21) }, { pwd: 'é'.repeat(37) }]) {
+        const res = await post('/api/auth/register', { full_name: 'Ana', email, phone: `5${n}`.slice(0, 20), pwd: 'Clave-de-prueba-123', ...over });
+        const text = await res.text();
+        assert.equal(res.status, 400, JSON.stringify(over).slice(0, 40));
+        assert.equal(JSON.parse(text).code, 'VALIDATION_ERROR');
+        assert.ok(!/Data too long|column/i.test(text));
+    }
+    assert.equal(await countUsers(email), 0);
+});
+
+test('register con tipos inesperados (número, objeto, arreglo) -> 400 y no se crea la cuenta', async () => {
+    const n = unique();
+    const email = `sqltest-${n}@example.test`;
+    for (const over of [{ pwd: 12345678 }, { phone: 3001112233 }, { full_name: ['Ana'] }, { email: { email } }]) {
+        const res = await post('/api/auth/register', { full_name: 'Ana', email, phone: `5${n}`.slice(0, 20), pwd: 'Clave-de-prueba-123', ...over });
+        assert.equal(res.status, 400, JSON.stringify(over));
+    }
+    assert.equal(await countUsers(email), 0);
+});
+
+test('login con tipos inesperados -> 400 y el servidor sigue respondiendo (con pwd numérico antes colgaba la petición y tumbaba el proceso)', async () => {
+    const { creds } = await registerUser(); // el correo EXISTE: es el caso que llegaba a bcrypt.compare
+    for (const body of [
+        { email: creds.email, pwd: 12345678 },
+        { email: creds.email, pwd: ['x'] },
+        { email: creds.email, pwd: { a: 1 } },
+        { email: { email: 1 }, pwd: creds.pwd }
+    ]) {
+        const res = await post('/api/auth/login', body);
+        assert.equal(res.status, 400, JSON.stringify(body));
+        assert.equal((await res.json()).code, 'VALIDATION_ERROR');
+    }
+    assert.equal((await post('/api/auth/login', { email: creds.email, pwd: creds.pwd })).status, 200);
+});
+
+test('login sin cuerpo JSON -> 400', async () => {
+    const res = await fetch(`${base}/api/auth/login`, { method: 'POST' });
+    assert.equal(res.status, 400);
+});
+
+test('login con espacios alrededor del correo -> 200 (se recorta igual que en el registro)', async () => {
+    const { creds } = await registerUser();
+    const res = await post('/api/auth/login', { email: `  ${creds.email} `, pwd: creds.pwd });
+    assert.equal(res.status, 200);
+});
+
+test('login: correo inexistente y contraseña incorrecta dan exactamente la misma respuesta', async () => {
+    const { creds } = await registerUser();
+    const wrong = await post('/api/auth/login', { email: creds.email, pwd: 'incorrecta' });
+    const unknown = await post('/api/auth/login', { email: `sqltest-nadie-${unique()}@example.test`, pwd: creds.pwd });
+    assert.equal(wrong.status, 401);
+    assert.equal(unknown.status, 401);
+    assert.deepEqual(await wrong.json(), await unknown.json());
+});
+
+test('un error REAL de MySQL en register y login no llega al cliente ni al log (se provoca renombrando una columna de la BD de pruebas)', async (t) => {
+    const [cols] = await q("SHOW COLUMNS FROM users LIKE 'phone'");
+    assert.equal(cols.length, 1, 'la columna users.phone no existe: ejecuta npm run db:reset:test');
+
+    const spy = t.mock.method(console, 'error', () => {});
+    const { creds } = await registerUser(); // cuenta creada ANTES de romper el esquema
+    let registerRes, registerText, loginRes, loginText;
+    await q('ALTER TABLE users RENAME COLUMN phone TO phone_x');
+    try {
+        const n = unique();
+        registerRes = await post('/api/auth/register', { full_name: 'Falla', email: `sqltest-${n}@example.test`, phone: `5${n}`.slice(0, 20), pwd: 'Clave-de-prueba-123' });
+        registerText = await registerRes.text();
+        loginRes = await post('/api/auth/login', { email: creds.email, pwd: creds.pwd });
+        loginText = await loginRes.text();
+    } finally {
+        await q('ALTER TABLE users RENAME COLUMN phone_x TO phone'); // siempre se restaura el esquema
+    }
+
+    for (const [status, text] of [[registerRes.status, registerText], [loginRes.status, loginText]]) {
+        assert.equal(status, 500);
+        assert.deepEqual(JSON.parse(text), { error: 'Internal error', code: 'DB_ERROR' });
+        assert.ok(!/phone|INSERT|SELECT|users|sportanet|Unknown column/i.test(text), `la respuesta filtró: ${text}`);
+    }
+    const log = spy.mock.calls.map((c) => c.arguments.map(String).join(' ')).join('\n');
+    assert.match(log, /ER_BAD_FIELD_ERROR/);
+    assert.ok(!/phone|INSERT|SELECT|Clave-de-prueba|\$2[aby]\$/i.test(log), `el log filtró: ${log}`);
+    assert.equal((await q("SHOW COLUMNS FROM users LIKE 'phone'"))[0].length, 1); // esquema restaurado
 });

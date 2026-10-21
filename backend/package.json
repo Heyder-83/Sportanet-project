@@ -9,7 +9,11 @@
     "testsql": "node --env-file=.env.test --test test/integration/sql.test.js",
     "migrate": "node scripts/migrate.js",
     "migrate:test": "node --env-file=.env.test scripts/migrate.js",
-    "db:reset:test": "node --env-file=.env.test scripts/migrate.js --reset"
+    "db:reset:test": "node --env-file=.env.test scripts/migrate.js --reset",
+    "migrate:ad": "node scripts/migrate.js --ad",
+    "migrate:ad:test": "node --env-file=.env.test scripts/migrate.js --ad",
+    "db:reset:ad-test": "node --env-file=.env.test scripts/migrate.js --ad --reset",
+    "testad": "node --env-file=.env.test --test test/integration/spn_ad.test.js"
   },
   "keywords": [],
   "author": "",

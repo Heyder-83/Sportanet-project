@@ -10,6 +10,9 @@
 //   node scripts/migrate.js --dry-run   lista lo que se aplicaría y no cambia nada
 //   node scripts/migrate.js --yes       omite la confirmación interactiva (solo fuera de *_test)
 //   node scripts/migrate.js --dir <carpeta> --schema <archivo>   rutas alternativas (pruebas)
+//   --ad  apunta a SPN_AD (la base de administradores) en lugar de la principal: usa DB_AD_NAME / DB_AD_USER /
+//         DB_AD_PASSWORD (sin valores por defecto) y la carpeta "Base de Datos/spn_ad/". Se combina con el resto:
+//         npm run migrate:ad:test | npm run db:reset:ad-test | npm run migrate:ad -- --dry-run
 //
 // Convenciones:
 // - Archivos en "Base de Datos/migrations/" con nombre NNN_descripcion.sql (p. ej. 002_users_avatar.sql).
@@ -36,19 +39,39 @@ const opt = (name) => {
 };
 
 const DB_DIR = path.resolve(__dirname, '../../Base de Datos');
-const MIGRATIONS_DIR = opt('--dir') ? path.resolve(opt('--dir')) : path.join(DB_DIR, 'migrations');
-const SCHEMA_FILE = opt('--schema') ? path.resolve(opt('--schema')) : path.join(DB_DIR, 'schema.sql');
+const AD = has('--ad'); // SPN_AD: base aparte de administradores
+const TARGET_DIR = AD ? path.join(DB_DIR, 'spn_ad') : DB_DIR;
+const MIGRATIONS_DIR = opt('--dir') ? path.resolve(opt('--dir')) : path.join(TARGET_DIR, 'migrations');
+const SCHEMA_FILE = opt('--schema') ? path.resolve(opt('--schema')) : path.join(TARGET_DIR, 'schema.sql');
+const LOCK_NAME = AD ? 'spn_ad_migrate' : 'sportanet_migrate';
 
-// Mismos valores por defecto que db/connection.js, para apuntar a la misma BD que la app.
-const dbName = process.env.DB_NAME || 'sportanet_v1';
+// Base principal: mismos valores por defecto que db/connection.js, para apuntar a la misma BD que la app.
+// SPN_AD (--ad): sin valores por defecto para nombre, usuario ni contraseña (como db/connectionAd.js).
+const env = process.env;
+if (AD) {
+    const missing = ['DB_AD_NAME', 'DB_AD_USER', 'DB_AD_PASSWORD'].filter((k) => typeof env[k] !== 'string' || env[k] === '');
+    if (missing.length) {
+        console.error(`\nERROR: con --ad faltan variables de entorno: ${missing.join(', ')}.`);
+        process.exit(1);
+    }
+}
+const dbName = AD ? env.DB_AD_NAME : (env.DB_NAME || 'sportanet_v1');
 const isTestDb = /^[A-Za-z0-9_]+_test$/.test(dbName);
-const baseConfig = {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 3306,
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'root',
-    multipleStatements: true
-};
+const baseConfig = AD
+    ? {
+        host: env.DB_AD_HOST || env.DB_HOST || 'localhost',
+        port: parseInt(env.DB_AD_PORT || env.DB_PORT || '3306', 10),
+        user: env.DB_AD_USER,
+        password: env.DB_AD_PASSWORD,
+        multipleStatements: true
+    }
+    : {
+        host: env.DB_HOST || 'localhost',
+        port: env.DB_PORT ? parseInt(env.DB_PORT, 10) : 3306,
+        user: env.DB_USER || 'root',
+        password: env.DB_PASSWORD || 'root',
+        multipleStatements: true
+    };
 
 function fail(message) {
     console.error(`\nERROR: ${message}`);
@@ -119,7 +142,7 @@ async function main() {
         conn = await mysql.createConnection({ ...baseConfig, database: dbName });
     } catch (err) {
         if (err.code === 'ER_BAD_DB_ERROR') {
-            throw new Error(`La BD "${dbName}" no existe. En pruebas: npm run db:reset:test (la crea desde schema.sql).`);
+            throw new Error(`La BD "${dbName}" no existe. En pruebas: npm run ${AD ? 'db:reset:ad-test' : 'db:reset:test'} (la crea desde schema.sql).`);
         }
         throw err;
     }
@@ -127,7 +150,7 @@ async function main() {
     let locked = false;
     try {
         // Evita dos ejecuciones simultáneas sobre la misma BD.
-        const [[lock]] = await conn.query("SELECT GET_LOCK('sportanet_migrate', 5) AS got");
+        const [[lock]] = await conn.query(`SELECT GET_LOCK('${LOCK_NAME}', 5) AS got`);
         if (lock.got !== 1) throw new Error('Otra ejecución de migrate está en curso (no se obtuvo el bloqueo).');
         locked = true;
 
@@ -182,7 +205,7 @@ async function main() {
         }
         console.log(`\n${pending.length} migración(es) aplicada(s) en ${dbName}.`);
     } finally {
-        if (locked) await conn.query("SELECT RELEASE_LOCK('sportanet_migrate')").catch(() => {});
+        if (locked) await conn.query(`SELECT RELEASE_LOCK('${LOCK_NAME}')`).catch(() => {});
         await conn.end();
     }
 }

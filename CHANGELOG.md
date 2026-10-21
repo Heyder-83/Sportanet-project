@@ -4,6 +4,24 @@ Este archivo registra los cambios relevantes realizados en Sportanet, incluyendo
 
 El formato está inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). El versionado se organiza por fases de desarrollo para facilitar el seguimiento incremental del proyecto.
 
+## [Fase 1F.1] - 2026-10-21
+
+Primer paso de la Fase 1F (acceso de administradores): solo la base de datos. No hay rutas, login ni TSU todavía.
+
+### Añadido
+- `Base de Datos/spn_ad/schema.sql` y `README.md`: SPN_AD, base aparte de administradores. Tablas `admins` (id interno único; nombre **no** único; `tsu_hash` único y obligatorio, el TSU nunca en claro; `pwd` bcrypt; `totp_secret_enc` cifrado; `status` pending/active/suspended; `failed_attempts` y `locked_until` por cuenta; un CHECK impide una cuenta activa o suspendida incompleta), `admin_logins` (fecha y hora y resultado, **sin IP ni ubicación**; FK `ON DELETE RESTRICT`) y `schema_migrations`.
+- `backend/db/connectionAd.js`: pool propio de SPN_AD. Sin valores por defecto para nombre, usuario ni contraseña (falla al cargarse); rechaza usar la base principal y, en producción, el mismo usuario de MySQL que la base principal.
+- `backend/scripts/migrate.js --ad`: aplica migraciones y `--reset` (solo `*_test`) sobre SPN_AD con `DB_AD_*` y la carpeta `Base de Datos/spn_ad/`. Sin `--ad` el comportamiento no cambia. Scripts npm: `migrate:ad`, `migrate:ad:test`, `db:reset:ad-test`, `testad`.
+- `backend/test/integration/spn_ad.test.js` (13 pruebas): restricciones del esquema y aislamiento de `connectionAd`.
+
+### Decisiones
+- No se guarda la IP de los administradores (ni de nadie): solo fecha y hora de inicio de sesión, con cláusula de seguridad en el contrato firmado (Ley 1581 de 2012).
+- El TSU se guarda solo como hash (HMAC-SHA-256); sin cifrado reversible. Los administradores no usan `users.role = 'Admin'`: viven solo en SPN_AD.
+
+### Verificación
+- `testad` 13/13 (dos ejecuciones), `npm test` 64/64 y `testsql` 45/45 sin cambios, en MariaDB 10.11. Cinco mutaciones del esquema (sin UNIQUE del TSU, sin CHECK, nombre único, columna `ip`, FK en cascada) detectadas.
+- Falta ejecutar en MySQL 8.0.46. Pendiente de tu autorización: crear `spn_ad` real y su usuario (ver `Base de Datos/spn_ad/README.md`).
+
 ## [Fase 1E] - 2026-10-21
 
 ### Añadido

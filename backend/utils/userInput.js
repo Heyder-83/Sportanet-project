@@ -54,6 +54,21 @@ function validateLogin(body) {
     return { email: trimmed, pwd };
 }
 
+// Lista blanca del tipo de cuenta del formulario público. Un Map (no un objeto) para que claves como
+// 'constructor' o '__proto__' no resuelvan a nada. Admin no está: las cuentas Admin solo se crean desde la BD.
+const ACCOUNT_TYPES = new Map([
+    ['Atleta', 'Participant'],
+    ['Organizador', 'Organizer']
+]);
+
+// Devuelve el rol de BD para account_type, o null si no es válido. Si no se envía, es Atleta
+// (compatibilidad con clientes anteriores al selector).
+function resolveAccountType(value) {
+    if (value === undefined) return 'Participant';
+    if (!isString(value)) return null;
+    return ACCOUNT_TYPES.get(value) || null;
+}
+
 function badRequest(res, invalid) {
     return res.status(400).json({
         error: `Invalid or missing fields: ${invalid.join(', ')}`,
@@ -62,4 +77,4 @@ function badRequest(res, invalid) {
     });
 }
 
-module.exports = { validators, validateBody, validateLogin, badRequest };
+module.exports = { validators, validateBody, validateLogin, resolveAccountType, badRequest };

@@ -326,7 +326,12 @@ async function handleLogin() {
             }, 1500);
         } else {
             // Error del servidor
-            showMessage("login", "error", data.message || "Error al iniciar sesión. Verifica tus credenciales.");
+            const loginMsgs = {
+                ACCOUNT_DELETED: "Esta cuenta ya no existe.",
+                ACCOUNT_DISABLED: "Esta cuenta está desactivada.",
+                VALIDATION_ERROR: "Ingresa tu correo y contraseña."
+            };
+            showMessage("login", "error", loginMsgs[data.code] || "Correo o contraseña incorrectos.");
         }
     } catch (error) {
         console.error("Error al conectar con el servidor:", error);
@@ -335,6 +340,17 @@ async function handleLogin() {
         btnSubmit.disabled = false;
         btnSubmit.textContent = "Ingresar";
     }
+}
+
+// Mensaje en español para un error de /api/auth/register según su `code` (la API responde { error, code }).
+function registerErrorMessage(data) {
+    const byCode = {
+        EMAIL_TAKEN: "Ese correo ya está registrado.",
+        PHONE_TAKEN: "Ese teléfono ya está registrado.",
+        VALIDATION_ERROR: "Revisa los datos ingresados e inténtalo de nuevo.",
+        DB_ERROR: "Error del servidor. Intenta más tarde."
+    };
+    return (data && byCode[data.code]) || "Error al crear la cuenta. Intenta de nuevo.";
 }
 
 // Creacion de usuario - Envia datos a `/api/auth/register`, guarda token y user en localStorage
@@ -350,6 +366,7 @@ async function handleRegistro() {
     const email = document.getElementById("reg-email").value.trim();
     const phone = document.getElementById("reg-phone").value.trim();
     const password = document.getElementById("reg-password").value;
+    const accountType = document.getElementById("reg-tipo").value; // 'Atleta' | 'Organizador' (el servidor valida)
     const messageEl = document.getElementById("registro-message");
     const btnSubmit = document.getElementById("btn-submit-registro");
 
@@ -367,7 +384,8 @@ async function handleRegistro() {
                 full_name: nombre, 
                 email, 
                 phone,
-                pwd: password 
+                pwd: password,
+                account_type: accountType
             })
         });
 
@@ -398,7 +416,7 @@ async function handleRegistro() {
             }, 1500);
         } else {
             // Error del servidor
-            showMessage("registro", "error", data.message || "Error al crear la cuenta. Intenta con otro correo.");
+            showMessage("registro", "error", registerErrorMessage(data));
         }
     } catch (error) {
         console.error("Error al conectar con el servidor:", error);

@@ -645,3 +645,113 @@ test('un error REAL de MySQL en register y login no llega al cliente ni al log (
     assert.ok(!/phone|INSERT|SELECT|Clave-de-prueba|\$2[aby]\$/i.test(log), `el log filtró: ${log}`);
     assert.equal((await q("SHOW COLUMNS FROM users LIKE 'phone'"))[0].length, 1); // esquema restaurado
 });
+
+// ---------------------------------------------------------------------------
+// Fase 1E: registro por tipo de cuenta (Atleta / Organizador)
+// ---------------------------------------------------------------------------
+
+const regBody = (over = {}) => {
+    const n = unique();
+    return { full_name: `Cuenta ${n}`, email: `sqltest-${n}@example.test`, phone: `7${n}`.slice(0, 20), pwd: 'Clave-de-prueba-123', ...over };
+};
+const organizerRows = async (email) =>
+    (await q('SELECT o.user_id, o.display_name FROM event_organizers o JOIN users u ON u.user_id = o.user_id WHERE u.email = ?', [email]))[0];
+
+test('register Atleta (explícito o por defecto): Participant y SIN fila en event_organizers', async () => {
+    for (const extra of [{ account_type: 'Atleta' }, {}]) {
+        const body = regBody(extra);
+        const res = await post('/api/auth/register', body);
+        assert.equal(res.status, 200);
+        assert.equal((await res.json()).user.role, 'Participant');
+        assert.equal((await q('SELECT role FROM users WHERE email = ?', [body.email]))[0][0].role, 'Participant');
+        assert.equal((await organizerRows(body.email)).length, 0);
+    }
+});
+
+test('register Organizador: users.role = Organizer y fila en event_organizers con display_name = nombre del usuario', async () => {
+    const body = regBody({ account_type: 'Organizador', full_name: '  Club Deportivo Andes  ' });
+    const res = await post('/api/auth/register', body);
+    assert.equal(res.status, 200);
+    const out = await res.json();
+    assert.equal(out.user.role, 'Organizer');
+    const [[u]] = await q('SELECT user_id, role FROM users WHERE email = ?', [body.email]);
+    assert.equal(u.role, 'Organizer');
+    assert.equal(u.user_id, out.user.id);
+    const rows = await organizerRows(body.email);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].user_id, u.user_id);
+    assert.equal(rows[0].display_name, 'Club Deportivo Andes');
+});
+
+test('Organizador: login y /me devuelven el rol Organizer', async () => {
+    const body = regBody({ account_type: 'Organizador' });
+    await post('/api/auth/register', body);
+    const login = await post('/api/auth/login', { email: body.email, pwd: body.pwd });
+    assert.equal(login.status, 200);
+    const out = await login.json();
+    assert.equal(out.user.role, 'Organizer');
+    const me = await get('/api/auth/me', out.token);
+    assert.equal((await me.json()).role, 'Organizer');
+});
+
+test('register con account_type fuera de la lista blanca (Admin, enum de BD, mayúsculas...) -> 400 y no se crea nada', async () => {
+    for (const account_type of ['Admin', 'Administrador', 'Organizer', 'Participant', 'organizador', 'constructor', '__proto__', 5, null]) {
+        const body = regBody({ account_type });
+        const res = await post('/api/auth/register', body);
+        assert.equal(res.status, 400, JSON.stringify(account_type));
+        assert.deepEqual((await res.json()).fields, ['account_type']);
+        assert.equal(await countUsers(body.email), 0);
+    }
+});
+
+test('register Organizador: si falla el INSERT en event_organizers se revierte TODO (no queda un usuario Organizer huérfano)', async (t) => {
+    const spy = t.mock.method(console, 'error', () => {});
+    const body = regBody({ account_type: 'Organizador' });
+    let res, text;
+    await q('ALTER TABLE event_organizers RENAME COLUMN display_name TO display_name_x');
+    try {
+        res = await post('/api/auth/register', body);
+        text = await res.text();
+    } finally {
+        await q('ALTER TABLE event_organizers RENAME COLUMN display_name_x TO display_name'); // siempre se restaura
+    }
+    assert.equal(res.status, 500);
+    assert.deepEqual(JSON.parse(text), { error: 'Internal error', code: 'DB_ERROR' });
+    assert.ok(!/display_name|INSERT|event_organizers/i.test(text));
+    assert.equal(await countUsers(body.email), 0, 'el INSERT en users debía haberse revertido');
+    assert.match(spy.mock.calls.map((c) => c.arguments.map(String).join(' ')).join('\n'), /ER_BAD_FIELD_ERROR/);
+    assert.equal((await q("SHOW COLUMNS FROM event_organizers LIKE 'display_name'"))[0].length, 1); // esquema restaurado
+    // El pool sigue sano: la conexión se liberó y un registro posterior funciona.
+    assert.equal((await post('/api/auth/register', regBody({ account_type: 'Organizador' }))).status, 200);
+});
+
+test('register Organizador: dos solicitudes idénticas simultáneas -> una cuenta, una fila de organizador y un 409', async () => {
+    const n = unique();
+    const email = `sqltest-${n}@example.test`;
+    const mk = (phone) => ({ full_name: 'Carrera Org', email, phone, pwd: 'Clave-de-prueba-123', account_type: 'Organizador' });
+    const [a, b] = await Promise.all([
+        post('/api/auth/register', mk(`5${n}`.slice(0, 20))),
+        post('/api/auth/register', mk(`6${n}`.slice(0, 20)))
+    ]);
+    assert.deepEqual([a.status, b.status].sort(), [200, 409]);
+    assert.equal(await countUsers(email), 1);
+    assert.equal((await organizerRows(email)).length, 1);
+});
+
+test('register Organizador con teléfono repetido -> 409 PHONE_TAKEN y sin fila de organizador', async () => {
+    const first = regBody();
+    await post('/api/auth/register', first);
+    const body = regBody({ account_type: 'Organizador', phone: first.phone });
+    const res = await post('/api/auth/register', body);
+    assert.equal(res.status, 409);
+    assert.equal((await res.json()).code, 'PHONE_TAKEN');
+    assert.equal(await countUsers(body.email), 0);
+    assert.equal((await organizerRows(body.email)).length, 0);
+});
+
+test('un Admin NO se puede crear por registro: role:"Admin" + account_type válido sigue dando Organizer y sin Admin', async () => {
+    const body = regBody({ account_type: 'Organizador', role: 'Admin' });
+    const res = await post('/api/auth/register', body);
+    assert.equal(res.status, 200);
+    assert.equal((await q('SELECT role FROM users WHERE email = ?', [body.email]))[0][0].role, 'Organizer');
+});

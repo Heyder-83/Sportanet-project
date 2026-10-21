@@ -11,13 +11,25 @@ process.env.JWT_SECRET = SECRET; // antes de cargar config/jwt.js
 
 // ---- Pool simulado: se registra en la caché de módulos ANTES de cargar el router ----
 let calls = [];
+let tx = []; // eventos de transacción: begin / commit / rollback / release
 let handler;
 const fakePool = {
     promise: () => ({
         query: async (sql, params) => {
             calls.push({ sql, params });
             return handler(sql, params);
-        }
+        },
+        // Conexión para transacciones (db/accounts.js): sus query() pasan por el mismo handler.
+        getConnection: async () => ({
+            query: async (sql, params) => {
+                calls.push({ sql, params });
+                return handler(sql, params);
+            },
+            beginTransaction: async () => { tx.push('begin'); },
+            commit: async () => { tx.push('commit'); },
+            rollback: async () => { tx.push('rollback'); },
+            release: () => { tx.push('release'); }
+        })
     })
 };
 const connPath = require.resolve('../db/connection');
@@ -33,11 +45,12 @@ const store = new Map(); // email -> fila
 const HASH = bcrypt.hashSync('Clave-123', 4);
 const row = (over = {}) => ({
     user_id: 7, full_name: 'Ana Test', email: 'ana@test.co', phone: '3000000000',
-    pwd: HASH, is_active: 1, deleted_at: null, ...over
+    role: 'Participant', pwd: HASH, is_active: 1, deleted_at: null, ...over
 });
 
 const defaultHandler = async (sql, params) => {
     if (sql.startsWith('INSERT INTO users')) return [{ insertId: 42 }, undefined];
+    if (sql.startsWith('INSERT INTO event_organizers')) return [{ insertId: 5 }, undefined];
     if (/FROM users WHERE email = \?/.test(sql)) return [store.has(params[0]) ? [store.get(params[0])] : [], undefined];
     throw new Error(`SQL inesperada en la prueba: ${sql}`);
 };
@@ -62,6 +75,7 @@ before(async () => {
 
 beforeEach(() => {
     calls = [];
+    tx = [];
     handler = defaultHandler;
     store.clear();
     store.set('ana@test.co', row());
@@ -93,7 +107,7 @@ test('register válido -> 200 con token, usuario sin pwd y valores recortados', 
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.message, 'User registered successfully');
-    assert.deepEqual(body.user, { id: 42, full_name: 'Nuevo Usuario', email: 'nuevo@test.co', phone: '3001112233' });
+    assert.deepEqual(body.user, { id: 42, full_name: 'Nuevo Usuario', email: 'nuevo@test.co', phone: '3001112233', role: 'Participant' });
     assert.equal(JSON.stringify(body).includes('$2'), false); // ningún hash en la respuesta
     const payload = jwt.verify(body.token, SECRET, { algorithms: ['HS256'] });
     assert.equal(payload.id, 42);
@@ -103,9 +117,9 @@ test('register válido -> 200 con token, usuario sin pwd y valores recortados', 
 test('register: INSERT con columnas fijas y la contraseña SOLO como hash bcrypt', async () => {
     await post('/register', validRegister());
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].sql, 'INSERT INTO users (full_name, email, phone, pwd) VALUES (?, ?, ?, ?)');
-    const [name, email, phone, stored] = calls[0].params;
-    assert.deepEqual([name, email, phone], ['Nuevo Usuario', 'nuevo@test.co', '3001112233']);
+    assert.equal(calls[0].sql, 'INSERT INTO users (full_name, email, phone, pwd, role) VALUES (?, ?, ?, ?, ?)');
+    const [name, email, phone, stored, role] = calls[0].params;
+    assert.deepEqual([name, email, phone, role], ['Nuevo Usuario', 'nuevo@test.co', '3001112233', 'Participant']);
     assert.notEqual(stored, 'Clave-segura-1');
     assert.match(stored, /^\$2[aby]\$10\$/);
     assert.equal(await bcrypt.compare('Clave-segura-1', stored), true);
@@ -115,9 +129,13 @@ test('register ignora role, is_active, user_id y deleted_at del body (no hay asi
     const res = await post('/register', validRegister({ role: 'Admin', is_active: 0, user_id: 1, deleted_at: '2020-01-01' }));
     assert.equal(res.status, 200);
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].params.length, 4); // solo los 4 campos conocidos
-    assert.ok(!/role|is_active|user_id|deleted_at/.test(calls[0].sql));
-    assert.equal((await res.json()).user.id, 42); // el id lo asigna la BD, no el cliente
+    assert.equal(calls[0].params.length, 5); // los 4 campos conocidos + el rol que decide el servidor
+    assert.equal(calls[0].params[4], 'Participant'); // role:'Admin' del body no llega a la BD
+    assert.ok(!calls[0].params.includes('Admin'));
+    assert.ok(!/is_active|user_id|deleted_at/.test(calls[0].sql));
+    const body = await res.json();
+    assert.equal(body.user.id, 42); // el id lo asigna la BD, no el cliente
+    assert.equal(body.user.role, 'Participant');
 });
 
 test('register con datos inválidos -> 400 VALIDATION_ERROR con la lista de campos y SIN tocar la BD', async () => {
@@ -203,6 +221,88 @@ test('register: un fallo inesperado en bcrypt -> 500 genérico (no cuelga ni tum
 });
 
 // ---------------------------------------------------------------------------
+// register: tipo de cuenta (Fase 1E)
+// ---------------------------------------------------------------------------
+
+test('register Atleta explícito -> Participant, UN solo INSERT y sin fila de organizador', async () => {
+    const res = await post('/register', validRegister({ account_type: 'Atleta' }));
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).user.role, 'Participant');
+    assert.equal(calls.length, 1);
+    assert.ok(!calls.some((c) => c.sql.includes('event_organizers')));
+    assert.deepEqual(tx, ['begin', 'commit', 'release']);
+});
+
+test('register Organizador -> Organizer y fila en event_organizers con el nombre del usuario, en una transacción', async () => {
+    const res = await post('/register', validRegister({ account_type: 'Organizador', full_name: ' Club Los Andes ' }));
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.user.role, 'Organizer');
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].params[4], 'Organizer');
+    assert.equal(calls[1].sql, 'INSERT INTO event_organizers (user_id, display_name) VALUES (?, ?)');
+    assert.deepEqual(calls[1].params, [42, 'Club Los Andes']); // id recién creado + nombre recortado
+    assert.deepEqual(tx, ['begin', 'commit', 'release']);
+});
+
+test('register Organizador: si falla el INSERT del organizador se hace rollback, no hay commit y se libera la conexión', async (t) => {
+    const logged = captureErrors(t);
+    handler = async (sql) => {
+        if (sql.startsWith('INSERT INTO users')) return [{ insertId: 42 }, undefined];
+        throw mysqlError('ER_NO_REFERENCED_ROW_2', 'Cannot add or update a child row');
+    };
+    const res = await post('/register', validRegister({ account_type: 'Organizador' }));
+    assert.equal(res.status, 500);
+    assert.deepEqual(await res.json(), { error: 'Internal error', code: 'DB_ERROR' });
+    assert.deepEqual(tx, ['begin', 'rollback', 'release']);
+    assert.match(logged(), /ER_NO_REFERENCED_ROW_2/);
+});
+
+test('register: duplicado dentro de la transacción -> 409 con rollback', async () => {
+    handler = async () => { throw mysqlError('ER_DUP_ENTRY', "Duplicate entry 'x@y.co' for key 'users.email'"); };
+    const res = await post('/register', validRegister({ account_type: 'Organizador' }));
+    assert.equal(res.status, 409);
+    assert.equal((await res.json()).code, 'EMAIL_TAKEN');
+    assert.deepEqual(tx, ['begin', 'rollback', 'release']);
+});
+
+test('register: account_type fuera de la lista blanca -> 400 sin tocar la BD (Admin, minúsculas, prototipo, tipos raros)', async () => {
+    const bad = ['Admin', 'Administrador', 'Participant', 'Organizer', 'atleta', 'ORGANIZADOR', ' Atleta', '',
+        'constructor', '__proto__', 'toString', null, 0, 1, true, ['Atleta'], { a: 1 }];
+    for (const account_type of bad) {
+        const res = await post('/register', validRegister({ account_type }));
+        const body = await res.json();
+        assert.equal(res.status, 400, JSON.stringify(account_type));
+        assert.equal(body.code, 'VALIDATION_ERROR');
+        assert.deepEqual(body.fields, ['account_type']);
+    }
+    assert.equal(calls.length, 0);
+    assert.deepEqual(tx, []);
+});
+
+test('register: account_type inválido se suma a los demás campos inválidos en la misma respuesta', async () => {
+    const res = await post('/register', validRegister({ email: 'mal', account_type: 'Admin' }));
+    assert.equal(res.status, 400);
+    assert.deepEqual((await res.json()).fields, ['email', 'account_type']);
+});
+
+test('db/accounts.createAccount rechaza el rol Admin aunque otro código lo pidiera (defensa en profundidad)', async () => {
+    const { createAccount } = require('../db/accounts');
+    for (const role of ['Admin', undefined, 'constructor']) {
+        await assert.rejects(createAccount({ full_name: 'X', email: 'x@y.co', phone: '1', pwdHash: 'h', role }));
+    }
+    assert.equal(calls.length, 0);
+    assert.deepEqual(tx, []); // ni siquiera abre una conexión
+});
+
+test('login de un Organizador devuelve su rol', async () => {
+    store.set('org@test.co', row({ user_id: 9, email: 'org@test.co', role: 'Organizer' }));
+    const res = await post('/login', { email: 'org@test.co', pwd: 'Clave-123' });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).user.role, 'Organizer');
+});
+
+// ---------------------------------------------------------------------------
 // login
 // ---------------------------------------------------------------------------
 
@@ -211,7 +311,7 @@ test('login válido -> 200 con token y usuario sin pwd; email recortado; SELECT 
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.message, 'Login successful');
-    assert.deepEqual(body.user, { id: 7, full_name: 'Ana Test', email: 'ana@test.co', phone: '3000000000' });
+    assert.deepEqual(body.user, { id: 7, full_name: 'Ana Test', email: 'ana@test.co', phone: '3000000000', role: 'Participant' });
     assert.equal(JSON.stringify(body).includes('$2'), false);
     const payload = jwt.verify(body.token, SECRET, { algorithms: ['HS256'] });
     assert.deepEqual([payload.id, payload.email], [7, 'ana@test.co']);

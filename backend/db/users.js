@@ -29,7 +29,7 @@ async function findUserById(userId) {
 // login responde distinto en cada caso (después de comprobar la contraseña). Devuelve la fila o null.
 async function findAuthUserByEmail(email) {
     const [rows] = await db().query(
-        'SELECT user_id, full_name, email, phone, pwd, is_active, deleted_at FROM users WHERE email = ?',
+        'SELECT user_id, full_name, email, phone, role, pwd, is_active, deleted_at FROM users WHERE email = ?',
         [email]
     );
     return rows[0] || null;

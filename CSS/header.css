@@ -235,7 +235,8 @@
     font-size: 0.95rem;
 }
 
-.form-group input {
+.form-group input,
+.form-group select {
     padding: 0.8rem;
     background-color: #003366;
     color: white;
@@ -246,7 +247,8 @@
     outline: none;
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group select:focus {
     border-color: #00cc66;
     box-shadow: 0 0 8px rgba(0, 255, 127, 0.3);
 }

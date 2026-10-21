@@ -50,11 +50,6 @@ $RECYCLE.BIN/
 *.lnk
 
 # ============================================================
-# Material de trabajo con IA (solo local, no al repo)
-# ============================================================
-AI_CONTEXT.md
-
-# ============================================================
 # Base de datos
 # ------------------------------------------------------------
 # Los .sql pueden contener datos reales → se ignoran por defecto.

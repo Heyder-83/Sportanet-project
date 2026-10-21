@@ -4,6 +4,27 @@ Este archivo registra los cambios relevantes realizados en Sportanet, incluyendo
 
 El formato está inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). El versionado se organiza por fases de desarrollo para facilitar el seguimiento incremental del proyecto.
 
+## [Fase 1E] - 2026-10-21
+
+### Añadido
+- `backend/db/accounts.js`: `createAccount`, alta transaccional de una cuenta. Para un Organizador inserta en la misma transacción la fila de `users` (rol `Organizer`) y la de `event_organizers` con `display_name` = nombre del usuario; si cualquier paso falla se hace rollback y no queda un Organizador sin su fila de organizador. Rechaza cualquier rol que no sea `Participant` u `Organizer` (segunda barrera: Admin no se crea por registro).
+- `backend/utils/userInput.js`: `resolveAccountType`, lista blanca del campo `account_type`: `Atleta` → `Participant`, `Organizador` → `Organizer` (un `Map`, para que `constructor` o `__proto__` no resuelvan a nada).
+- Frontend: selector «Tipo de cuenta» (Atleta / Organizador) en el formulario de registro (`includes/header.html`, `CSS/header.css`, `JS/header.js`).
+- 8 pruebas unitarias en `auth.test.js` y 8 de integración en `sql.test.js`.
+
+### Cambiado
+- `POST /api/auth/register` acepta `account_type` opcional (por defecto `Atleta`, compatible con clientes anteriores); cualquier otro valor, incluido `Admin`, responde 400 `VALIDATION_ERROR` con `fields: ["account_type"]`. `role` en el body sigue ignorándose.
+- `register` y `login` devuelven también `user.role` (`Participant` / `Organizer`); `findAuthUserByEmail` selecciona `role`.
+- `JS/header.js`: envía `account_type`; los errores de registro y login muestran un mensaje en español según el `code` de la API. Antes leía `data.message`, que la API nunca envía, y siempre mostraba el texto genérico (también para `EMAIL_TAKEN`, `PHONE_TAKEN`, `ACCOUNT_DISABLED` y `ACCOUNT_DELETED`).
+
+### Decisiones de producto
+- Un Organizador puede crear eventos sin verificación por ahora; a futuro se estudiará un esquema de verificación para eventos patrocinados, promocionales o auditados por Sportanet.
+- Las cuentas Admin son solo para gestionar la plataforma: un administrador debe tener además una cuenta de Atleta aparte.
+
+### Verificación
+- Unitarias 64/64 y de integración 45/45 (dos ejecuciones) en MariaDB 10.11; prueba manual en Chromium: selector, envío de `account_type`, `role` guardado y mensaje de correo duplicado.
+- Mutaciones detectadas por las pruebas: quitar el rollback, quitar el guard de rol, admitir `Admin` en la lista blanca y no crear la fila de organizador.
+
 ## [Fase 1D] - 2026-10-20
 
 ### Añadido

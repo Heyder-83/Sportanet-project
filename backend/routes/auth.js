@@ -1,7 +1,7 @@
 // backend/routes/auth.js
 // Registro, inicio de sesión y verificación de sesión.
 //
-//   POST /api/auth/register  full_name, email, phone, pwd  -> crea una cuenta Participant y emite un JWT
+//   POST /api/auth/register  full_name, email, phone, pwd, account_type? -> crea una cuenta Atleta u Organizador y emite un JWT
 //   POST /api/auth/login     email, pwd                    -> emite un JWT si las credenciales y la cuenta son válidas
 //   GET  /api/auth/me        (requiere sesión)             -> identidad leída de la BD
 //
@@ -18,7 +18,8 @@ const router = express.Router();
 const { JWT_SECRET } = require('../config/jwt'); // sin secreto por defecto: falla si falta JWT_SECRET
 const authenticate = require('../middleware/requireAuth'); // authenticate ya conectado a la BD (verifica is_active/deleted_at)
 const users = require('../db/users');
-const { validateBody, validateLogin, badRequest } = require('../utils/userInput');
+const accounts = require('../db/accounts');
+const { validateBody, validateLogin, resolveAccountType, badRequest } = require('../utils/userInput');
 const dbFail = require('../utils/dbFail');
 
 const BCRYPT_ROUNDS = 10;
@@ -33,21 +34,25 @@ const issueToken = (userId, email) => jwt.sign({ id: userId, email }, JWT_SECRET
 // Creacion de usuario (REGISTER):
 // - Recibe full_name, email, phone, pwd (los cuatro obligatorios y válidos; ver utils/userInput.js)
 // - Hashea la contraseña con bcrypt
-// - Inserta el usuario con el rol y el estado por defecto del esquema (Participant, activo)
+// - account_type: 'Atleta' (por defecto) -> Participant; 'Organizador' -> Organizer, y en la misma transacción se
+//   crea su fila en event_organizers con el nombre del usuario. Cualquier otro valor (incluido 'Admin') es 400.
 // - Genera y devuelve un JWT junto al objeto usuario
 // - Email o teléfono ya registrados: 409 EMAIL_TAKEN / PHONE_TAKEN (la restricción UNIQUE de la BD decide,
 //   también cuando dos registros idénticos llegan a la vez)
 router.post('/register', async (req, res) => {
     const { data, invalid } = validateBody(req.body, { requireAll: true });
+    const role = resolveAccountType(req.body && typeof req.body === 'object' ? req.body.account_type : undefined);
+    if (!role) invalid.push('account_type');
     if (invalid.length) return badRequest(res, invalid);
 
     try {
         const pwdHash = await bcrypt.hash(data.pwd, BCRYPT_ROUNDS);
-        const userId = await users.createUser({
+        const userId = await accounts.createAccount({
             full_name: data.full_name,
             email: data.email,
             phone: data.phone,
-            pwdHash
+            pwdHash,
+            role
         });
 
         res.json({
@@ -58,7 +63,8 @@ router.post('/register', async (req, res) => {
                 id: userId,
                 full_name: data.full_name,
                 email: data.email,
-                phone: data.phone
+                phone: data.phone,
+                role
             }
         });
     } catch (err) {
@@ -102,7 +108,8 @@ router.post('/login', async (req, res) => {
                 id: user.user_id,
                 full_name: user.full_name,
                 email: user.email,
-                phone: user.phone
+                phone: user.phone,
+                role: user.role
             }
         });
     } catch (err) {

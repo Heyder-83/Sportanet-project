@@ -1,0 +1,10 @@
+{
+  "baseUrl": "http://127.0.0.1:5000/api/auth", // URL base de la API de métricas
+  "plan": "Calls = {10000000,1,1 min}", // Plan de carga de prueba de resistencia
+  "maxCallsPerBurst": 10000000, // Número máximo de llamadas por ráfaga
+  "estimatedServerLimit": 10000000, // Límite estimado del servidor
+  "thresholdRatio": 1, // Umbral del porcentaje de uso del servidor permitido
+  "slowThresholdMs": 1500, // Tiempo máximo de respuesta permitido en milisegundos
+  "warningThresholdMs": 800, // Umbral de advertencia en milisegundos
+  "criticalThresholdMs": 1500 // Umbral crítico en milisegundos
+}

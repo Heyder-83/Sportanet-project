@@ -4,6 +4,42 @@ Este archivo registra los cambios relevantes realizados en Sportanet, incluyendo
 
 El formato está inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). El versionado se organiza por fases de desarrollo para facilitar el seguimiento incremental del proyecto.
 
+## [Fase 1F.3] - 2026-10-21
+
+Prueba de sobrecarga configurable con formato de llamadas y umbral de frenado.
+
+### Añadido
+- `backend/config.json`: centraliza la configuración editable de la prueba de resistencia para que el usuario cambie los valores en un único sitio.
+- `backend/utils/loadConfig.js`: carga la configuración centralizada y fusiona los overrides por CLI sin romper el flujo actual.
+- `backend/utils/loadPlan.js`: parsea la configuración `Calls = {n, frecuencia, duración unidad}` con validación estricta de números y unidades permitidas (`seg`, `min`, `hor`, `dia`). Calcula la serie total de llamadas y el umbral de frenado por burst.
+- `backend/test/loadPlan.test.js` y `backend/test/loadConfig.test.js`: cubren el formato de la configuración, las unidades permitidas y la carga centralizada.
+- `backend/scripts/load-test.js`: ejecuta una prueba de carga configurable según el formato solicitado, con dos parámetros clave: número de llamadas por ventana, frecuencia por segundo y duración del período. También permite definir un umbral cercano al límite real del servidor para provocar una respuesta de frenado.
+
+### Cambiado
+- `backend/package.json`: se sigue usando `npm run measure:load`, con soporte de `--plan`/`--threshold`/`--slow-threshold-ms` para adaptar la prueba al escenario deseado y leer la configuración base desde `backend/config.json`.
+
+### Verificación
+- `npm test` en `backend/`: **70/70** pasando.
+
+## [Fase 1F.2] - 2026-10-21
+
+Protección y medición de carga para estabilizar el backend bajo picos de tráfico.
+
+### Añadido
+- `backend/middleware/stability.js`: `createStabilityMonitor` y `createRateLimiter` para registrar solicitudes aceptadas/bloqueadas y limitar ráfagas por IP en una ventana de tiempo.
+- `backend/scripts/load-test.js`: ejecuta una prueba de carga simple contra el endpoint de métricas para medir rendimiento y saturación del backend.
+- Endpoint `/api/health/metrics` en `backend/app.js` para consultar el estado del monitor y la tasa de peticiones aceptadas/bloqueadas.
+
+### Cambiado
+- `backend/app.js`: se añadió un `rateLimiter` global para rutas protegidas, se limitó el tamaño máximo del JSON y el body urlencoded a `1mb`, y se dejó exento el `/api/health/metrics` para que siga siendo monitorizable.
+- `backend/package.json`: añade `npm run measure:load` para ejecutar la prueba de carga desde la línea de comandos.
+
+### Verificación
+- `npm test` en `backend/`: **65/65** pasando.
+
+### Pendiente
+- Ajustar los límites de tasa en producción según el volumen real del tráfico y el número de servidores.
+
 ## [Fase 1F.1] - 2026-10-21
 
 Primer paso de la Fase 1F (acceso de administradores): solo la base de datos. No hay rutas, login ni TSU todavía.

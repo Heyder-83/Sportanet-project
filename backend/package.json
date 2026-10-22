@@ -7,6 +7,7 @@
     "start": "node app.js",
     "test": "node --test test/*.test.js",
     "testsql": "node --env-file=.env.test --test test/integration/sql.test.js",
+    "measure:load": "node scripts/load-test.js",
     "migrate": "node scripts/migrate.js",
     "migrate:test": "node --env-file=.env.test scripts/migrate.js",
     "db:reset:test": "node --env-file=.env.test scripts/migrate.js --reset",

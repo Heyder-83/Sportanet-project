@@ -4,6 +4,80 @@ Este archivo registra los cambios relevantes realizados en Sportanet, incluyendo
 
 El formato está inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). El versionado se organiza por fases de desarrollo para facilitar el seguimiento incremental del proyecto.
 
+## [SPNdev.3] - 2026-10-29
+
+Eventos: estructura de datos (migraciones 001-004, sección de abajo), API pública y `events.html` conectado a la base de datos. Se publican juntos.
+
+### API pública y página de eventos
+
+`events.html` ya no tiene tarjetas fijas en el HTML. Sin cambios de esquema en esta parte.
+
+- `GET /api/events` (sin sesión): `q` (nombre, hasta 100 caracteres), `when=upcoming|past|all` (por defecto `upcoming`), `sort=name_asc|name_desc|newest|oldest`, `page`, `limit` (1-50, por defecto 12). Respuesta `{data, page, limit, total, total_pages}`. Parámetro inválido -> 400 `VALIDATION_ERROR` con la lista de campos.
+- `GET /api/events/:id`: detalle con sede, club, organizador, galería, personal (solo si `staff_mode = 'Specific'`) y cupos. Borrador o inexistente -> 404 `NOT_FOUND`; un evento cancelado se ve con su motivo.
+- Visibilidad decidida en el backend (`db/events.js`): nunca borradores; el listado excluye cancelados; próximo = `Published` que no ha terminado; pasado = `Completed` o `Published` ya terminado. Fechas en hora de pared de Colombia (`America/Bogota`); el "ahora" se calcula en Node, no depende de la zona de MySQL.
+- Nunca se expone: `online_url`, `user_id`, correos ni lista de inscritos (solo el conteo de confirmados). `Cache-Control: public, max-age=30`. Búsqueda con `LIKE ... ESCAPE` (`%`, `_` y `|` son texto) y orden por lista blanca con desempate por id.
+- `events.html` + `JS/events.js` + `CSS/events.css`: buscador por nombre (con retardo de 350 ms, botón de borrar y `?q=` en la URL), pestañas Próximos / Pasados, "Ver más", ventana de detalle y estados de carga, vacío y error. Todo texto de la API se inserta con `textContent`. La inscripción en línea aún no existe en el backend: el botón no simula resultados.
+- Pruebas: `test/eventsQuery.test.js` y `test/eventsRoute.test.js` (en `npm test`) y `test/integration/events_api.test.js` (21, en `npm run testsql`).
+- Filtros de orden en la interfaz: selector Predeterminado / Nombre A-Z / Nombre Z-A / Más nuevos / Más antiguos (`name_asc`, `name_desc`, `newest`, `oldest`, por fecha de inicio); se conserva al cambiar de pestaña o buscar y queda en la URL (`?sort=`).
+- Pendiente: API de inscripciones, validar `cover_image` en el servidor, subida de imágenes (hoy `cover_image` es una ruta o URL https), caché JSON de consultas públicas.
+
+### Estructura de datos de eventos (antes "Eventos 1", 2026-10-28)
+
+Estructura de datos de eventos, en `sportanet_v1` (no se crea una base aparte: se conservan las claves foráneas con usuarios y organizadores, y las inscripciones siguen en la misma transacción que el cupo). Cuatro migraciones, una por cambio (`npm run migrate` en `sportanet_v1`; `npm run migrate:test` o `db:reset:test` en la BD de pruebas):
+
+- `001_events_staff_mode.sql`: `sport_events.staff_mode` (`Club` = lo organiza el club en general, por defecto; `Specific` = personas concretas).
+- `002_event_staff.sql`: tabla `event_staff` (personal organizador: usuario con cuenta o solo nombre, cargo; un usuario no se repite en el mismo evento; cae en cascada con el evento y, si el usuario se borra, la fila conserva el nombre).
+- `003_event_images.sql`: tabla `event_images` (galería; solo la ruta, la portada sigue en `cover_image`).
+- `004_events_drop_visibility.sql`: se quitan `visibility` y `share_token` (no hay eventos privados) y el índice del listado pasa a `(event_status, start_at)`.
+- Pruebas: `test/integration/events_schema.test.js` (11), incluidas en `npm run testsql`.
+- Reglas que hará cumplir la API: `staff_mode = 'Club'` no tiene filas en `event_staff`; los eventos pasados son `Completed` o con `end_at` vencido; la lista de participantes (inscripciones) solo la ve el organizador y el público ve solo el conteo de confirmados.
+
+## [SPNdev.2] - 2026-10-28
+
+Autenticación de administradores (login + middleware), todavía **sin 2FA**. Los administradores viven solo en SPN_AD y no usan `users.role`.
+
+### Añadido
+- `POST /api/admin/login` (`admin_id` + `pwd`; el nombre no es único) -> 200 con JWT de administrador de **30 min** (`aid`, `typ:'admin'`, HS256). 400 `VALIDATION_ERROR`; 401 `INVALID_CREDENTIALS` genérico (id inexistente, cuenta sin activar o clave mala: misma respuesta y se ejecuta bcrypt contra un hash falso para que el tiempo no revele ids); 403 `ADMIN_SUSPENDED` (clave correcta, cuenta suspendida); 429 `ADMIN_LOCKED` con `Retry-After`.
+- Bloqueo: 5 intentos fallidos por cuenta -> 15 min (el contador se reinicia al bloquear). El intento se reserva con `SELECT ... FOR UPDATE` **antes** de bcrypt, así que peticiones simultáneas no pueden evaluar más de 5 contraseñas por ciclo. Al bloquear se escribe `[ALERTA-ADMIN]` en el log del sistema (`utils/adminAlerts.js`; el envío al correo de historial queda para después).
+- Cada intento queda en `admin_logins` (fecha y hora y resultado; **sin IP**).
+- `GET /api/admin/me` y `middleware/authenticateAdmin.js` (factory con `findAdminById` inyectable) + `middleware/requireAdminAuth.js`: verifica con `ADMIN_JWT_SECRET`, exige `typ:'admin'`, y consulta SPN_AD en cada petición (suspender una cuenta corta la sesión abierta). Deja la identidad en `req.adminAuth`.
+- `config/adminJwt.js`: `ADMIN_JWT_SECRET` obligatoria (≥32, distinta de `JWT_SECRET` y `TSU_HMAC_KEY`); un token de administrador no sirve en `/api/auth` ni `/api/users` y al revés.
+- Variable nueva `ADMIN_JWT_SECRET` en `.env.example`.
+- Pruebas: `test/authenticateAdmin.test.js`, `test/adminLogin.test.js` (unitarias) y 9 pruebas nuevas en `test/integration/spn_ad.test.js` (bloqueo real, concurrencia, suspensión, flujo register -> login).
+
+### Corregido
+- `.env`: `DB_AD_NAME` apuntaba a `sportanet_admin` (inexistente) -> `spn_ad`. `.env.test` no definía `DB_AD_*`, así que `db:reset:ad-test` tomaba los valores de `.env`; ahora define `spn_ad_test`.
+
+### Pendiente
+- 2FA, interfaz de administración en el frontend, correo de alertas, generador de TSU (y retirar `tsu_reserve`), limpieza de `admin_logins` a 12 meses, cláusula contractual (Ley 1581).
+
+## [SPNdev.1] - 2026-10-27
+
+Alta de administradores en SPN_AD con lista de TSU y **sin 2FA** (modo «mostrario de concepto»). A partir de aquí el avance de la línea de administradores se numera SPNdev.N (la numeración 1F.x quedaba en conflicto con las fases 1F.2 y 1F.3 de estabilidad y carga); las versiones oficiales llegarán después (0.0.1).
+
+### Añadido
+- `Base de Datos/spn_ad/schema.sql`: tabla `tsu_reserve` (lista de TSU **antes de hashear**, solo desarrollo). Se carga a mano con INSERT como root; acepta solo 16 a 64 caracteres alfanuméricos (CHECK) y distingue mayúsculas de minúsculas (`ascii_bin`). Al asignar un TSU a una cuenta su fila se borra y en `admins` solo queda su hash.
+- `backend/routes/adminAuth.js`: `POST /api/admin/register` con `full_name`, `pwd` y `tsu` -> 201 con `{ admin: { id, full_name } }` (sin token). 400 `VALIDATION_ERROR` con la lista de campos; 403 `TSU_INVALID` tanto si el TSU no existe como si ya se usó (misma respuesta). Solo lee esos 3 campos: `status`, `admin_id`, `tsu_hash`, etc. del body se ignoran. El TSU se comprueba antes de gastar bcrypt.
+- `backend/db/admins.js`: `tsuIsAvailable` y `createAdminWithTsu` (transacción: DELETE del TSU de la lista, que solo gana una petición si llegan varias a la vez, e INSERT del administrador ya activo con el hash del TSU; si algo falla se revierte y el TSU sigue disponible).
+- `backend/utils/tsu.js` (formato del TSU y `hashTsu`, HMAC-SHA-256 con clave del servidor) y `backend/config/tsu.js` (exige `TSU_HMAC_KEY`: ≥ 32 caracteres y distinta de `JWT_SECRET`; sin valor por defecto).
+- `backend/test/tsu.test.js` (3 pruebas) y `backend/test/adminAuth.test.js` (12): unitarias, sin MySQL. 8 pruebas de integración nuevas en `spn_ad.test.js`.
+- `backend/.env.example`: variables de SPN_AD y `TSU_HMAC_KEY`.
+
+### Cambiado
+- `Base de Datos/spn_ad/schema.sql`: el 2FA deja de ser obligatorio (`totp_secret_enc` queda reservada y opcional; el CHECK de `admins` ya no lo exige). Se edita el esquema base y no se añade una migración porque `spn_ad` real todavía no existe; si tienes `spn_ad_test` de la versión anterior, ejecuta `npm run db:reset:ad-test`.
+- `backend/app.js`: monta `/api/admin` solo si `DB_AD_NAME` está definido (en ese caso `DB_AD_USER`, `DB_AD_PASSWORD` y `TSU_HMAC_KEY` son obligatorias y la app falla al arrancar si faltan). Sin `DB_AD_NAME` imprime un aviso y el resto de la API funciona igual. La ruta queda bajo el limitador de peticiones global existente.
+- `Base de Datos/spn_ad/README.md`: lista de TSU, alta de administradores y permisos mínimos del usuario de MySQL (la app puede leer y borrar de `tsu_reserve`, nunca insertar).
+
+### Seguridad y límites conocidos
+- La lista `tsu_reserve` contiene TSU **en claro** hasta que se asignan: quien pueda leerla puede crear cuentas de administrador. Es una excepción consciente de desarrollo; debe eliminarse (migración) cuando los TSU se generen con una herramienta que guarde solo el hash.
+- Sin 2FA y sin login de administradores todavía: la cuenta creada aun no puede iniciar sesión. El límite de 5 intentos con alerta tampoco está; mientras tanto el alta solo está protegida por el limitador global por IP y por la longitud del TSU (se recomienda generarlos con 16 bytes aleatorios o más).
+- El TSU se hashea con HMAC (de una sola vía): no se puede «desencriptar»; el original lo conserva quien cargó la lista.
+
+### Verificación
+- En una copia con tu `app.js` y `stability.js` reales, MariaDB 10.11: `npm test` 79/79 (64 anteriores + 15 nuevas; en tu repo, con tus pruebas de carga, deberían ser 85), `npm run testad` 21/21 (tres ejecuciones), y `testsql` sin cambios. Prueba real con `app.js`: alta 201, mismo TSU 403, TSU corto 400, JSON malformado 400, sin `DB_AD_NAME` la ruta no existe, sin `TSU_HMAC_KEY` la app no arranca; el usuario de MySQL con solo los permisos del README basta para el alta.
+- Mutaciones detectadas por las pruebas: no comprobar el DELETE del TSU, guardar el TSU en claro en `admins`, quitar el rollback, no comprobar la lista antes de bcrypt, aceptar `status` del body, SHA-256 sin clave, regex sin ancla final, quitar el CHECK o la collation binaria de `tsu_reserve`, y volver a exigir el 2FA.
+- Falta ejecutarlo en MySQL 8.0.46 (CHECK con REGEXP sobre `ascii_bin`).
+
 ## [Fase 1F.3] - 2026-10-21
 
 Prueba de sobrecarga configurable con formato de llamadas y umbral de frenado.

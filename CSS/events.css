@@ -375,3 +375,443 @@
 .contacto a:hover {
     color: #00cc66;
 }
+
+/* ===== BUSCADOR, PESTAÑAS Y ESTADOS (listado dinámico) ===== */
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.eventos-buscador {
+    display: flex;
+    flex-direction: row; /* style.css fija `form` en columna */
+    align-items: stretch;
+    gap: 0.8rem;
+    max-width: 640px;
+    margin: 0 auto 2rem;
+}
+
+.buscador-campo {
+    position: relative;
+    flex: 1;
+}
+
+.buscador-campo input {
+    width: 100%;
+    padding: 0.85rem 2.6rem 0.85rem 1rem;
+    border-radius: 8px;
+    border: 2px solid rgba(0, 255, 127, 0.35);
+    background-color: #002b4d;
+    color: #ffffff;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.buscador-campo input::placeholder {
+    color: #9fb3c8;
+}
+
+.buscador-campo input:focus {
+    outline: none;
+    border-color: #00FF7F;
+    box-shadow: 0 0 0 3px rgba(0, 255, 127, 0.2);
+}
+
+.buscador-campo input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.buscador-limpiar {
+    position: absolute;
+    right: 0.4rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #9fb3c8;
+    font-size: 1.4rem;
+    line-height: 1;
+}
+
+.buscador-limpiar:hover,
+.buscador-limpiar:focus-visible {
+    color: #00FF7F;
+    background-color: rgba(0, 255, 127, 0.12);
+}
+
+.btn-buscar,
+.btn-mas,
+.btn-reintentar {
+    padding: 0.85rem 1.6rem;
+    border: 2px solid #00FF7F;
+    border-radius: 8px;
+    background-color: #00FF7F;
+    color: #001f3f;
+    font-weight: 700;
+    font-size: 1rem;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.btn-buscar:hover,
+.btn-mas:hover,
+.btn-reintentar:hover {
+    background-color: #00cc66;
+    border-color: #00cc66;
+    transform: translateY(-2px);
+}
+
+.btn-mas {
+    background-color: transparent;
+    color: #00FF7F;
+}
+
+.btn-mas:hover {
+    color: #001f3f;
+}
+
+.btn-mas:disabled {
+    opacity: 0.6;
+    cursor: wait;
+    transform: none;
+}
+
+.eventos-controles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(0, 255, 127, 0.2);
+}
+
+.eventos-tabs {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.eventos-tab {
+    padding: 0.7rem 1.4rem;
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: #b0c4d8;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.eventos-tab:hover {
+    color: #ffffff;
+}
+
+.eventos-tab[aria-selected="true"] {
+    color: #00FF7F;
+    border-bottom-color: #00FF7F;
+}
+
+.eventos-resumen {
+    margin: 0;
+    color: #b0c4d8;
+    font-size: 0.95rem;
+}
+
+.eventos-orden {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.8rem 1rem;
+    padding-bottom: 0.5rem;
+}
+
+.eventos-select {
+    padding: 0.55rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.evento-placeholder p {
+    margin-bottom: 1rem;
+    opacity: 1;
+}
+
+.evento-placeholder-vacio,
+.evento-placeholder-cargando {
+    color: #b0c4d8;
+}
+
+.evento-placeholder-error {
+    color: #ff9b9b;
+}
+
+.eventos-mas {
+    text-align: center;
+    margin-top: 2.5rem;
+}
+
+.eventos-aviso {
+    position: fixed;
+    left: 50%;
+    bottom: 1.5rem;
+    transform: translateX(-50%);
+    z-index: 2000;
+    max-width: min(90vw, 520px);
+    margin: 0;
+    padding: 0.9rem 1.2rem;
+    border-radius: 8px;
+    background-color: #002b4d;
+    border: 2px solid #00FF7F;
+    color: #ffffff;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    opacity: 1;
+}
+
+.eventos-aviso[hidden] {
+    display: none;
+}
+
+/* Tarjeta: imagen de reemplazo, estado y precio */
+.evento-sin-imagen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 5rem;
+    font-weight: 800;
+    color: rgba(0, 255, 127, 0.35);
+}
+
+.evento-estado {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 10;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    background-color: rgba(0, 31, 63, 0.92);
+    border: 1px solid #00FF7F;
+    color: #00FF7F;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.evento-precio {
+    margin-left: auto;
+    color: #00FF7F;
+    font-weight: 700;
+}
+
+.btn-detalles:disabled,
+.btn-inscribir:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-detalles:focus-visible,
+.btn-inscribir:focus-visible,
+.eventos-tab:focus-visible,
+.btn-buscar:focus-visible,
+.btn-mas:focus-visible,
+.btn-reintentar:focus-visible,
+.eventos-select:focus-visible,
+.evento-dialog-cerrar:focus-visible {
+    outline: 3px solid #ffffff;
+    outline-offset: 2px;
+}
+
+/* ===== DETALLE DEL EVENTO (ventana) ===== */
+
+.evento-dialog {
+    width: min(92vw, 720px);
+    max-height: 90vh;
+    padding: 0;
+    border: 2px solid #00FF7F;
+    border-radius: 14px;
+    background-color: #002b4d;
+    color: #ffffff;
+    overflow-y: auto;
+    margin: auto;
+}
+
+.evento-dialog::backdrop {
+    background-color: rgba(0, 10, 25, 0.75);
+}
+
+#evento-dialog-body {
+    padding: 0 0 1.8rem;
+}
+
+.evento-dialog-cerrar {
+    position: absolute;
+    top: 0.7rem;
+    right: 0.7rem;
+    z-index: 5;
+    width: 2.4rem;
+    height: 2.4rem;
+    border: none;
+    border-radius: 50%;
+    background-color: rgba(0, 31, 63, 0.9);
+    color: #ffffff;
+    font-size: 1.6rem;
+    line-height: 1;
+}
+
+.evento-dialog-cerrar:hover {
+    background-color: #00FF7F;
+    color: #001f3f;
+}
+
+.detalle-portada {
+    display: block;
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+}
+
+.detalle-cabecera,
+.detalle-titulo,
+.detalle-datos,
+.detalle-descripcion,
+.detalle-organizacion,
+.detalle-cancelado,
+.detalle-estado,
+.detalle-galeria {
+    margin-left: 1.8rem;
+    margin-right: 1.8rem;
+}
+
+.detalle-cabecera {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-top: 1.4rem;
+}
+
+.evento-etiqueta-inline,
+.evento-estado-inline {
+    position: static;
+}
+
+.detalle-titulo {
+    margin-top: 0.8rem;
+    margin-bottom: 1rem;
+    font-size: 1.9rem;
+    line-height: 1.2;
+}
+
+.detalle-cancelado {
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    background-color: rgba(255, 90, 90, 0.15);
+    border: 1px solid #ff7b7b;
+    color: #ffd0d0;
+    opacity: 1;
+}
+
+.detalle-datos {
+    display: grid;
+    gap: 0.7rem;
+    margin-bottom: 1.2rem;
+}
+
+.detalle-fila {
+    display: grid;
+    grid-template-columns: 9rem 1fr;
+    gap: 0.8rem;
+}
+
+.detalle-fila dt {
+    color: #00FF7F;
+    font-weight: 600;
+}
+
+.detalle-fila dd {
+    margin: 0;
+    color: #e6eef7;
+}
+
+.detalle-descripcion {
+    white-space: pre-line;
+    color: #e0e0e0;
+}
+
+.detalle-organizacion h3 {
+    font-size: 1.15rem;
+    margin-bottom: 0.4rem;
+}
+
+.detalle-personal {
+    margin: 0 0 1rem 1.2rem;
+    color: #e0e0e0;
+}
+
+.detalle-galeria {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.6rem;
+}
+
+.detalle-galeria img {
+    width: 100%;
+    height: 110px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.detalle-estado {
+    padding: 3rem 0 1rem;
+    text-align: center;
+}
+
+@media (max-width: 600px) {
+    .eventos-buscador {
+        flex-direction: column;
+    }
+
+    .eventos-controles {
+        justify-content: center;
+    }
+
+    .detalle-fila {
+        grid-template-columns: 1fr;
+        gap: 0.1rem;
+    }
+
+    .detalle-cabecera,
+    .detalle-titulo,
+    .detalle-datos,
+    .detalle-descripcion,
+    .detalle-organizacion,
+    .detalle-cancelado,
+    .detalle-estado,
+    .detalle-galeria {
+        margin-left: 1.1rem;
+        margin-right: 1.1rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .evento-card,
+    .evento-card:hover,
+    .evento-card:hover .evento-imagen img {
+        animation: none;
+        transform: none;
+        transition: none;
+    }
+}

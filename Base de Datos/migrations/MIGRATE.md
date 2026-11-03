@@ -10,7 +10,7 @@ Cada archivo `.sql` de esta carpeta es **un cambio** de estructura de la base de
 - No hace falta que el archivo escriba en `schema_migrations`: `scripts/migrate.js` registra la versión al terminar bien.
 - Un archivo ya aplicado en `sportanet_v1` **no se edita**; los cambios nuevos van en un archivo nuevo.
 
-## Antes de numerar la primera migración
+## Antes de numerar una migración nueva
 
 Mira qué versiones hay registradas en la BD principal:
 
@@ -18,7 +18,7 @@ Mira qué versiones hay registradas en la BD principal:
 SELECT version, description, applied_at FROM schema_migrations;
 ```
 
-Si una versión nueva coincide con una ya registrada, `migrate.js` la considera aplicada y la omite. Numera por encima de la más alta.
+Las migraciones `001` a `004` ya están en el repositorio. Antes de crear la siguiente, consulta la base destino: si una versión coincide con otra ya registrada, `migrate.js` la considera aplicada y la omite. Numera por encima de la más alta que exista tanto en el repositorio como en la base destino.
 
 ## Flujo (desde `backend/`)
 

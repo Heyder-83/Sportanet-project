@@ -1,116 +1,66 @@
-# Sportanet — Contexto para desarrollo con IA
+# Sportanet — Contexto actual para desarrollo con IA
 
-## Objetivo
-Desarrollar incrementalmente el backend de Sportanet para gestionar usuarios, organizadores, eventos deportivos, inscripciones, confirmaciones y calendario.
+## Objetivo y tecnologías
 
-## Tecnologías
-- Frontend: HTML, CSS y JavaScript.
-- Backend: Node.js y Express.
-- Base de datos: MySQL.
-- Autenticación: bcrypt y JWT.
+Sportanet es una plataforma web para descubrir eventos deportivos y, en fases futuras, gestionar eventos e inscripciones. El frontend usa HTML, CSS y JavaScript; el backend usa Node.js, Express 5 y MySQL. La autenticación de usuarios utiliza bcrypt y JWT.
 
-## Estado inicial
-- `backend/app.js`: servidor Express y registro de rutas.
-- `backend/db/connection.js`: conexión a MySQL.
-- `backend/routes/auth.js`: registro e inicio de sesión.
-- `backend/routes/users.js`: CRUD de usuarios.
-- `events.html`: página de eventos con contenido estático.
-- No existen todavía rutas de eventos ni de inscripciones en el backend.
+## Estado del repositorio
 
-## Reglas obligatorias
-1. No reconstruir el proyecto desde cero.
-2. No modificar funcionalidades terminadas salvo que sea indispensable y se justifique.
-3. No cambiar nombres de tablas, columnas, rutas o campos sin verificar el esquema real.
-4. Antes de escribir consultas SQL, revisar el esquema de base de datos seleccionado.
-5. No eliminar archivos ni dependencias sin autorización.
-6. No mostrar contraseñas, hashes, tokens ni secretos en respuestas o registros.
-7. Implementar únicamente la fase solicitada.
-8. Entregar los archivos modificados, los cambios realizados y las instrucciones para probarlos.
-9. Si falta información necesaria, preguntar antes de inventar estructuras.
-10. Si una prueba falla, corregir primero el problema de la tarea actual.
+Estado revisado el 2026-11-03. La rama `main` está sincronizada con `origin/main` y no tenía cambios locales al realizar la revisión. El último cambio registrado es `SPNdev.3` (2026-10-29), que incorporó el esquema ampliado de eventos, la API pública y la página conectada a la base de datos.
 
-## Esquema real de la base de datos (verificado)
+### Funcionalidades implementadas
 
-### Tabla `users`
-- `user_id` — int, PK, auto_increment
-- `full_name` — varchar(100), NOT NULL
-- `email` — varchar(100), NOT NULL, UNIQUE
-- `phone` — varchar(20), NULL, UNIQUE
-- `pwd` — varchar(255), NOT NULL (hash bcrypt; **el nombre canónico es `pwd`, no `password`**)
-- `role` — enum('Participant','Organizer','Admin'), NOT NULL, default 'Participant'
-- `is_active` — tinyint(1), NOT NULL, default 1
-- `deleted_at` — datetime, NULL (soft-delete)
-- `created_at` — datetime, NOT NULL, default CURRENT_TIMESTAMP
-- `updated_at` — datetime, NOT NULL, default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP
+- Registro e inicio de sesión de cuentas Participante y Organizador. El formulario público no puede crear administradores; la creación de Organizador y su perfil se realiza en una transacción.
+- JWT de usuario y middleware que consulta el estado y rol vigentes de la cuenta. `GET /api/auth/me` devuelve la identidad autenticada.
+- API de usuarios protegida por autenticación y autorización por rol/propiedad. No expone el hash de contraseña y elimina cuentas mediante borrado lógico.
+- API pública de eventos de solo lectura: `GET /api/events` (búsqueda, orden y paginación) y `GET /api/events/:id` (detalle). Los borradores no son públicos; el listado excluye cancelados. Las respuestas omiten enlaces privados y datos personales de inscritos.
+- `events.html` consulta la API y ofrece búsqueda, filtros de próximos/pasados, orden, paginación incremental y detalle. El botón de inscripción informa que esa función aún no está disponible; no crea una inscripción.
+- Línea de administración separada en la base `SPN_AD`: alta con TSU de un solo uso (`POST /api/admin/register`), login (`POST /api/admin/login`), consulta de sesión (`GET /api/admin/me`), JWT de administrador de 30 minutos y bloqueo temporal tras cinco intentos fallidos. Las rutas se montan solo al configurar `DB_AD_NAME`. No hay 2FA ni interfaz de administración.
+- Límite global de solicitudes, límite de 1 MB para cuerpos JSON/form-urlencoded y métricas en `GET /api/health/metrics`.
+- Migraciones de esquema versionadas y pruebas unitarias y de integración. `sportanet_v1` es la base principal; `sportanet_test`, `spn_ad` y `spn_ad_test` tienen funciones separadas. Los comandos de reset solo permiten nombres terminados en `_test`.
 
-**Notas:**
-- El PK se llama `user_id`, no `id`.
-- El campo de contraseña se llama `pwd` en BD, backend y frontend. La documentación previa decía `password`; está corregida.
-- El rol `Organizer` **ya existe en el esquema**. Falta definir cómo se asigna (endpoint o script) antes de la Fase 4.
-- El soft-delete (`is_active`, `deleted_at`) **ya existe en el esquema**. Verificar que el DELETE de `/api/users` lo use.
+## Esquema y migraciones
 
-## Estado de trabajo
+- El esquema base está en `Base de Datos/schema.sql`; las migraciones actuales son `001_events_staff_mode.sql` a `004_events_drop_visibility.sql`.
+- El esquema efectivo es `schema.sql` más las cuatro migraciones. Entre otros cambios, estas añaden `staff_mode`, `event_staff` y `event_images`, y eliminan la visibilidad privada y los tokens de compartir.
+- `sport_events` contiene título, deporte, descripción, portada, fechas de inicio/fin, zona horaria, modalidad, capacidad, precio/moneda, límite de inscripción, estado, sede/club y organizador. Los estados del esquema son `Draft`, `Published`, `Completed` y `Canceled`; la modalidad es `InPerson`, `Virtual` o `Hybrid`.
+- El esquema incluye `event_registrations` con estados `Pending`, `Confirmed`, `Waitlisted` y `Canceled`, además de estados de pago. La API de inscripciones aún no existe, así que tener la tabla no significa que los usuarios puedan inscribirse desde el producto.
+- SPN_AD es una base aparte: los administradores no son filas de `users` ni usan `users.role = 'Admin'`.
+- Antes de proponer consultas o cambios de esquema, revisar los SQL y migraciones reales. Antes de numerar la siguiente migración, consultar `schema_migrations` de la base destino y usar una versión superior a la más alta aplicada.
 
-### Fases terminadas
-- **Fase 0** (fecha por confirmar): frontend estático + backend con registro/login.
-- **Fase 1A** (2026-10-13): Middleware de autenticación JWT, configuración centralizada (`config/jwt.js`), endpoint `/api/auth/me`, tests unitarios (9/9 con `node --test`), fail-safe si falta `JWT_SECRET`. Commit `8393ca5`.
-- **Fase 1A.1** (2026-10-14): Preparación para despliegue. `process.env.PORT || 5000` en `app.js`, `DB_PORT` en `connection.js`, path absoluto al `.env` (`path.resolve(__dirname, '../.env')`) en `config/jwt.js` y `connection.js`, test "sin JWT_SECRET" desacoplado del filesystem. Commit `75a60f5`.
-- **Fase 1B** (2026-10-15): Verificación de estado de cuenta. `authenticate.js` es ahora una factory `createAuthenticate({ findUserById })`; tras validar el JWT consulta la cuenta y rechaza con `401 ACCOUNT_DISABLED` (`is_active` ≠ 1), `401 ACCOUNT_DELETED` (`deleted_at` o fila inexistente) o `500 DB_ERROR`. `req.auth` ahora incluye `role` (leído de la BD, nunca del token). Nuevos: `db/users.js` (`findUserById`) y `middleware/requireAuth.js` (instancia conectada al pool). `routes/auth.js`: importa `requireAuth`; `POST /login` devuelve `403 ACCOUNT_DISABLED/ACCOUNT_DELETED` (tras validar la contraseña) y no emite token; `/me` devuelve también `role`. `app.js` no cambió. Tests: **9 → 15**. Verificada por el equipo en MySQL 8.0.46 (Node 24.22.0) y por Claude en MariaDB 10.11. *(Una versión anterior de este archivo la daba por terminada sin que el código existiera; corregido.)*
-- **Fase 1B.1** (2026-10-16): Pruebas contra BD real y migraciones. `backend/scripts/migrate.js` (aplica `Base de Datos/migrations/NNN_*.sql`, registra en `schema_migrations`; `--status`, `--dry-run`, `--reset` solo en `*_test`, `--yes`; confirmación por nombre de BD fuera de `*_test`), `backend/test/integration/sql.test.js` (14 pruebas contra `sportanet_test`, con guard que exige `DB_NAME` terminado en `_test`) y `Base de Datos/migrations/MIGRATE.md`. Los scripts npm (`testsql`, `migrate`, `migrate:test`, `db:reset:test`) los añade el equipo a `backend/package.json`. Verificado por el equipo en MySQL 8.0.46 y por Claude en MariaDB 10.11.
-- **Fase 1C** (2026-10-17): Protección de `/api/users`. Todas las rutas exigen sesión. `GET /` y `POST /` solo Admin; `GET /:id`, `PUT /:id` y `DELETE /:id` el propio usuario o Admin (`middleware/authorize.js`). Nunca se devuelve `pwd`; `role`/`is_active` no se leen del body; validación 400 y duplicados 409 (`EMAIL_TAKEN`/`PHONE_TAKEN`, distinguidos por el nombre de la clave); errores de BD genéricos y sin SQL en el log. DELETE pasa a borrado lógico (`is_active = 0`, `deleted_at = NOW()`), conservando perfil e inscripciones. `db/users.js` gana `listActiveUsers`, `findPublicUserById`, `createUser`, `updateUser`, `softDeleteUser`. Cambios de contrato: `GET /:id` devuelve un objeto (antes un array) y `POST /` responde 201; el frontend (`header.js`) solo usa PUT y DELETE sobre el propio id y no cambia. Tests: +13 unitarios, +12 de integración. Verificado por el equipo en MySQL 8.0.46 (28/28 y 26/26) y por Claude en MariaDB 10.11.
-- **Fase 1D** (2026-10-20): Seguridad de `/api/auth`. `register` y `login` validan tipo, longitud y formato antes de tocar bcrypt o la BD (reglas compartidas con `/api/users` en `utils/userInput.js`); errores de BD genéricos y sin SQL en el log (`utils/dbFail.js`); duplicados `409 EMAIL_TAKEN`/`PHONE_TAKEN` (antes 400 y siempre "Email already registered"); el login usa `findAuthUserByEmail` (sin `SELECT *`) y compara contra un hash falso si el correo no existe. Corrige que `login` con un correo existente y `pwd` no textual (p. ej. un número) dejaba la petición sin respuesta y provocaba un `unhandledRejection` que termina el proceso. Cambios de contrato: duplicados 409 (antes 400); body inválido 400 `VALIDATION_ERROR` con `fields` (antes `Missing fields` o 500); el frontend solo comprueba `response.ok`, no cambia. Tests: +28 unitarios, +11 de integración. Verificado por el equipo en MySQL 8.0.46 y por Claude en MariaDB 10.11 (commit `9a78728`).
-- **Fase 1E** (2026-10-21): Registro por tipo de cuenta. `POST /api/auth/register` acepta `account_type` (`Atleta` → `Participant`, por defecto; `Organizador` → `Organizer`) con lista blanca en `utils/userInput.js`; cualquier otro valor, incluido `Admin`, es 400. `db/accounts.js` (`createAccount`) crea en una transacción el usuario y, si es Organizador, su fila en `event_organizers` con `display_name` = nombre del usuario. `register` y `login` devuelven `user.role`. Frontend: selector «Tipo de cuenta» y mensajes de error en español según `code` (corrige que se leía `data.message`). Tests: +8 unitarios, +8 de integración. Verificado por Claude en MariaDB 10.11 y en Chromium; falta confirmar en MySQL 8.0.46.
-- **Fase 1F.1** (2026-10-21): esquema de SPN_AD (`Base de Datos/spn_ad/`), `db/connectionAd.js`, `migrate.js --ad` y 13 pruebas (`npm run testad`). Solo base de datos; sin rutas ni login todavía. Verificado por Claude en MariaDB 10.11; falta MySQL 8.0.46 y crear `spn_ad` real con su usuario aislado.
-- **SPNdev.1** (2026-10-27): alta de administradores en SPN_AD con lista de TSU y **sin 2FA** («mostrario de concepto»). `tsu_reserve` (TSU en claro, solo desarrollo, carga manual con INSERT como root) -> `POST /api/admin/register` (`full_name`, `pwd`, `tsu`) borra el TSU de la lista y crea `admins` activo con solo el HMAC-SHA-256 del TSU, en una transacción; sin token ni login todavía. Nuevos: `routes/adminAuth.js`, `db/admins.js`, `utils/tsu.js`, `config/tsu.js` (`TSU_HMAC_KEY` obligatoria), `tsu.test.js` (3), `adminAuth.test.js` (12), +8 en `spn_ad.test.js` (21). `app.js` monta `/api/admin` solo si `DB_AD_NAME` está definido. El esquema base de SPN_AD se editó (no hay `spn_ad` real). Verificado por Claude en MariaDB 10.11 con el `app.js` real; falta MySQL 8.0.46.
+## Contrato vigente de eventos
 
-### Estado actual del código
-- Backend: Node.js + Express 5 + MySQL2 + JWT (HS256) + bcrypt.
-- Tests unitarios (sin BD): `authenticate` (15) + `authorize` (13) + `auth` (25) + `userInput` (11) = **64/64** (Claude, Node 22). El equipo confirmó 56/56 en la Fase 1D (Node 24.22.0, commit `9a78728`); falta confirmar los 64. El script `test` usa el glob `test/*.test.js`.
-- Pruebas de integración: `npm run testsql` (**45 pruebas**, `test/integration/sql.test.js`) contra `sportanet_test`; 45/45 en MariaDB 10.11 (Claude, dos rondas). El equipo confirmó 37/37 en MySQL 8.0.46 en la Fase 1D; falta confirmar las 45. `npm test` no las ejecuta. Algunas renombran una columna (`users.phone`, `event_organizers.display_name`) para provocar un error real de MySQL y siempre la restauran; si una ejecución se interrumpe, `npm run db:reset:test`.
-- Autorización: `middleware/authorize.js` (`requireRole`, `parseIdParam`, `requireSelfOrAdmin`; falla cerrado sin `req.auth`). `routes/users.js` aplica `router.use(authenticate)` a todo.
-- `.env.test` (fuera del repo, en `.gitignore`) define `DB_NAME=sportanet_test`; `connection.js` usa `sportanet_v1` si `DB_NAME` no está definido, por eso `sql.test.js` y `migrate.js --reset` se niegan a correr contra una BD cuyo nombre no termine en `_test`.
-- `npm audit --omit=dev`: 0 vulnerabilidades (reejecutado por Claude el 2026-10-17 sobre `origin/main` a7437f3; sin cambios de dependencias desde entonces).
-- Preparado para despliegue en Railway (DB) + Render (backend + frontend).
+- `GET /api/events`: ruta pública sin sesión. Acepta `q` (búsqueda por título, máximo 100 caracteres), `when=upcoming|past|all` (por defecto `upcoming`), `sort=name_asc|name_desc|newest|oldest`, `page` (por defecto 1) y `limit` (por defecto 12, máximo 50). Devuelve `{ data, page, limit, total, total_pages }`; parámetros inválidos dan `400 VALIDATION_ERROR`.
+- `GET /api/events/:id`: ruta pública de detalle. Los borradores y eventos inexistentes devuelven `404 NOT_FOUND`. Un evento cancelado puede consultarse por ID y muestra el motivo de cancelación.
+- Próximos son eventos `Published` cuyo `end_at` aún no pasó. Pasados son eventos `Completed` o `Published` cuyo `end_at` ya pasó. El listado no incluye `Canceled`. La comparación de fechas se calcula en la aplicación con la zona `America/Bogota`.
+- Listado y detalle incluyen cupo, cantidad confirmada y cupos restantes; el total cuenta solo inscripciones `Confirmed`. El detalle puede incluir sede, club, organizador, personal y galería.
+- No se exponen `online_url`, identificadores de usuarios del personal, correos ni listas de inscritos. El endpoint no requiere autenticación y usa caché pública de 30 segundos.
+- La interfaz conserva búsqueda, pestañas Próximos/Pasados, orden, paginación incremental y detalle. Aunque muestra capacidad, precio y botón «Inscribirse», el botón no crea una inscripción ni reserva cupo.
 
-### Fase siguiente
-- Antes de la primera migración: `SELECT * FROM schema_migrations;` en `sportanet_v1` para numerar por encima de las versiones registradas.
-- **Medición y estabilidad del backend (1F.2, aplicado):** se incorporó un monitor de carga (`createStabilityMonitor`), un limitador de ráfagas (`createRateLimiter`) y un endpoint `/api/health/metrics` para medir peticiones aceptadas/bloqueadas. También se restringió el tamaño del payload JSON y URL-encoded a `1mb` para evitar sobrecarga por cuerpos excesivos. Existe un script `npm run measure:load` para ejecutar una prueba de carga simple.
-- **Prueba de sobrecarga configurable (1F.3, aplicado):** se añadió `backend/config.json`, `backend/utils/loadConfig.js`, `backend/utils/loadPlan.js`, `backend/test/loadConfig.test.js` y `backend/test/loadPlan.test.js` para aceptar el formato `Calls = {número, frecuencia, duración unidad}` con validación de `1-60` y unidades `seg|min|hor|dia`. La configuración se centraliza en un único sitio y el script `backend/scripts/load-test.js` lo ejecuta de forma reproducible, con soporte de overrides por CLI.
-- **Decisiones de producto ya tomadas (1E):** un Organizador puede crear eventos sin verificación por ahora (a futuro, verificación para eventos patrocinados, promocionales o auditados por Sportanet). Las cuentas Admin son solo de gestión de la plataforma: un administrador debe tener además una cuenta de Atleta aparte.
-- **Versionado (decisión del equipo, 2026-10-27):** mientras el proyecto sea un «mostrario de concepto», la línea de administradores avanza como **SPNdev.N** (SPNdev.1, .2, ...), sin sistemas externos; las versiones oficiales (0.0.1 en adelante) llegarán después. Las 1F.2 y 1F.3 ya usadas son las de estabilidad y carga.
-- **Administradores (diseño cerrado, en pasos):** SPNdev.1 alta con lista de TSU y sin 2FA (hecho); siguientes, por decidir con el equipo: login de administradores (id interno + contraseña) y `authenticateAdmin`; límite de 5 intentos por cuenta con alerta (log del sistema + correo de historial); frontend del header; y, más adelante, el 2FA (TOTP por librería, secreto cifrado AES-256-GCM, 2FA siempre en cada login), el script generador de TSU (que elimina `tsu_reserve`) y la entrega del TSU. El TSU se usa para crear la cuenta, no en cada login.
-  - **Decisiones del equipo:** el TSU lo generan los dueños y se guarda solo como hash (HMAC-SHA-256); se usa para crear la cuenta (y, a decidir, para reiniciar el 2FA), no en cada login. **No se guarda IP ni ubicación**: solo fecha y hora de login, con cláusula de seguridad en el contrato (Ley 1581 de 2012). El 2FA se pide siempre. Los admins no usan `users.role = 'Admin'`: viven en SPN_AD con `admin_id` único (el nombre puede repetirse) y deben tener además una cuenta de Atleta aparte. El envío del PDF con el TSU es manual. Primer admin: INSERT directo en SPN_AD con root. Cada intento consulta SPN_AD; a los 5 fallos se envía alerta al log del sistema y a un correo dedicado de historial.
-  - **Abierto:** login con id interno (propuesto); bloqueo temporal tras 5 fallos (propuesto, por cuenta); servicio que envía el correo de historial; retención (propuesto 12 meses); `/api/users` pasa a aceptar el token de administrador; cookie `httpOnly` o token en memoria para el admin (depende de si front y API comparten dominio); redacción de la cláusula del contrato y validación legal; RNBD y transferencia internacional (Render/Railway) según el abogado.
-- Decidir la política de contraseña (mínimo y complejidad) y limitar intentos en `/api/auth/login`; hoy solo se exige 1 a 72 bytes (límite real de bcrypt), tanto en `register` como en `/api/users`.
-- Reorganización de estructura de carpetas (cosmética).
-- Creación de script `make-zip-for-claude.sh` (automatizar ZIP limpio para Claude).
-- Despliegue de base de datos en Railway.
-- Despliegue de backend en Render.
-- Migración de frontend a Render (según avance de Claude).
+## Pendiente conocido
 
-### Errores conocidos / pendientes
-- CORS abierto (`Access-Control-Allow-Origin: *`) → restringir en producción.
-- Falta rate limiting en `/api/auth/login`.
-- Falta política de contraseña (mínimo 8 caracteres, complejidad): hoy `register` solo exige entre 1 y 72 bytes.
-- El `.env` de la raíz y el de `backend/` están desalineados en PORT (raíz dice 3000, backend dice 5000). Revisar.
-- El handler global de `app.js` devuelve JSON (`INVALID_JSON`) para body malformado: comprobado a mano con `curl` en la Fase 1D, pero sin prueba automática (`app.js` arranca el servidor al importarse).
-- `JS/header.js` muestra `data.message` en los errores de login y registro, pero la API responde con `error`: el usuario siempre ve el texto genérico de reserva (incluidos `ACCOUNT_DISABLED`, `ACCOUNT_DELETED` y los 409 de duplicados). **Resuelto en 1E** (mensajes por `code`).
-- `register` revela si un correo o un teléfono ya están registrados (409): es inherente a las restricciones UNIQUE; la mitigación sería limitar intentos.
-- **Resuelto en 1E:** el registro de Organizadores crea la fila de `event_organizers` en la misma transacción; `Admin` no se puede obtener desde el formulario público.
-- **Resuelto en 1D:** `routes/auth.js` ya no filtra errores de MySQL, valida los datos de entrada, distingue email de teléfono en los duplicados, y `login` con un `pwd` no textual ya no cuelga la petición ni termina el proceso.
-- **Resuelto en 1C:** `routes/users.js` ya exige sesión, no devuelve `pwd`, no filtra errores de MySQL y el DELETE es borrado lógico (antes era físico y fallaba por la FK de `event_registrations`).
-- **Consecuencia conocida del borrado lógico:** el email y el teléfono de una cuenta eliminada siguen ocupados por los UNIQUE de `users`; esa persona no puede volver a registrarse con ellos. Decidir si se anonimizan al eliminar (decisión de producto/privacidad).
-- No hay forma de asignar el rol `Organizer`/`Admin` desde la API (el body de `/api/users` no lo acepta a propósito); hoy se haría por SQL. Definirla antes de la Fase 4. Tampoco hay protección contra eliminar al último Admin.
+- API y flujo de inscripciones (crear, consultar y cancelar, validando estado del evento, duplicados, cupos y reglas de pago).
+- API y pantallas para que organizadores creen y administren sus propios eventos.
+- Validación de `cover_image` en el servidor y carga de imágenes.
+- Interfaz de administración, 2FA y envío de alertas por correo; el alta aún depende de `tsu_reserve`, lista de desarrollo con TSU en claro.
+- Restringir CORS para producción y añadir limitación específica de intentos a `/api/auth/login`.
+- Revisar política de contraseñas y decisión sobre liberar correo/teléfono al borrar lógicamente una cuenta.
+- Despliegue de base de datos, backend y frontend.
 
-## Formato obligatorio al finalizar cada tarea
-- Archivos creados.
-- Archivos modificados.
-- Funcionalidad implementada.
-- Endpoints y campos utilizados.
-- Pruebas ejecutadas y resultados reales.
-- Errores pendientes.
-- Comandos para ejecutar y probar.
-- Estado actualizado de las fases.
-- Siguiente tarea recomendada.
+La especificación funcional de `PROJECT_LOGIC.md` describe capacidades objetivo; no implica que ya estén implementadas. Para el estado real, contrastar este archivo con el código y el changelog.
 
-No marques una tarea como terminada si no se ha comprobado su funcionamiento.
+## Reglas para futuros cambios
+
+1. Implementar solo el alcance solicitado y conservar funcionalidades existentes.
+2. Revisar primero rutas, esquema y migraciones reales; no inventar columnas, campos o contratos.
+3. Mantener secretos y credenciales fuera de respuestas, registros y documentos compartidos.
+4. No eliminar archivos ni dependencias como parte de cambios no relacionados.
+5. No declarar pruebas exitosas si no se ejecutaron. Las pruebas unitarias se ejecutan con `npm test` desde `backend/`; las de integración requieren `.env.test` y las bases de prueba preparadas.
+6. Actualizar este contexto y `CHANGELOG.md` cuando una funcionalidad se implemente y verifique.
+
+## Documentación relacionada
+
+- `README.md`: instalación, configuración de bases y comandos de prueba.
+- `PROJECT_LOGIC.md`: comportamiento funcional objetivo y principios de diseño.
+- `CHANGELOG.md`: historial de cambios implementados.
+- `spec.md`: instrucciones de trabajo del proyecto.

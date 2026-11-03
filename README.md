@@ -2,7 +2,7 @@
 
 ## Descripción del Proyecto
 
-Sportanet es una plataforma web diseñada para facilitar la búsqueda, gestión y participación en eventos deportivos. Permite a los usuarios registrarse, crear perfiles personalizados, explorar eventos disponibles e inscribirse en actividades deportivas de su interés.
+Sportanet es una plataforma web para descubrir eventos deportivos. Permite registrarse, crear perfiles y consultar eventos publicados. La gestión de eventos por organizadores y las inscripciones en línea están en desarrollo; la página pública de eventos está conectada a la base de datos y no simula inscripciones.
 
 ## Tecnologías Usadas
 
@@ -171,6 +171,12 @@ Sirve la carpeta raíz con un servidor HTTP local (por ejemplo `npx serve` o la 
 
 Para ver eventos en `events.html` necesitas filas en `sport_events` con estado `Published` en `sportanet_v1`.
 
+### Eventos disponibles actualmente
+
+La consulta pública no requiere iniciar sesión. `GET /api/events` permite buscar por nombre, elegir eventos próximos o pasados, ordenar y paginar resultados. `GET /api/events/:id` devuelve el detalle público. Los eventos próximos y pasados se determinan usando `end_at` en la zona `America/Bogota`; el listado público no muestra borradores ni cancelados. Los eventos cancelados pueden aparecer en su detalle si se consulta su ID.
+
+El listado y el detalle muestran la cantidad confirmada y los cupos restantes. La tabla `event_registrations` existe, pero todavía no hay endpoints de inscripción, creación o administración de eventos. El botón «Inscribirse» solo informa que la inscripción en línea no está disponible.
+
 ## Pruebas
 
 Todos los comandos se ejecutan **desde `backend/`**.
@@ -216,7 +222,7 @@ Después de añadir una migración nueva, repite `npm run db:reset:test` (y `db:
 2. **Iniciar Sesión** - Accede con tus credenciales
 3. **Mi Perfil** - Visualiza y edita tu información personal o elimina tu cuenta
 4. **Eventos** - Explora eventos deportivos (búsqueda por nombre, próximos/pasados y orden); no requiere cuenta
-5. **Inscripción** - Participa en eventos de tu interés (en desarrollo)
+5. **Inscripción** - La inscripción en línea aún no está disponible; el botón informa de su estado sin registrar una participación.
 
 ---
 

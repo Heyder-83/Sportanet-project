@@ -4,6 +4,15 @@ Este archivo registra los cambios relevantes realizados en Sportanet, incluyendo
 
 El formato está inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). El versionado se organiza por fases de desarrollo para facilitar el seguimiento incremental del proyecto.
 
+## [SPNdev.4] - 2026-11-03
+
+### Documentación
+- Se alinearon `AI_CONTEXT.md`, `README.md` y `PROJECT_LOGIC.md` con el estado real de la API pública y la interfaz de eventos: parámetros, visibilidad, cálculo de fechas, datos públicos y límites actuales.
+- Se aclaró que el esquema contiene la tabla de inscripciones, pero aún no hay endpoints para inscribirse ni para crear o administrar eventos.
+- Se actualizó `Base de Datos/migrations/MIGRATE.md` para indicar que ya existen las migraciones `001` a `004` y que la numeración futura debe comprobarse contra el repositorio y la base destino.
+
+Esta entrega actualiza documentación; no añade funcionalidades de producto.
+
 ## [SPNdev.3] - 2026-10-29
 
 Eventos: estructura de datos (migraciones 001-004, sección de abajo), API pública y `events.html` conectado a la base de datos. Se publican juntos.

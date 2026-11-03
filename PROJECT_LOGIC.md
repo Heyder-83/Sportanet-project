@@ -19,6 +19,19 @@ No se debe cambiar de tecnología sin autorización expresa.
 
 La base de datos utilizada conserva el nombre `sportanet_v1`, aunque su estructura fue actualizada al esquema v2. El nombre de la base de datos no determina por sí solo la versión de su estructura.
 
+## Estado implementado (2026-11-03)
+
+Esta especificación describe el producto objetivo; no todas las capacidades enumeradas están disponibles todavía. El estado de implementación actual es:
+
+- Registro/login de participantes y organizadores, autenticación JWT y gestión protegida de perfiles.
+- Consulta pública de eventos publicados mediante `GET /api/events` y `GET /api/events/:id`; `events.html` ofrece búsqueda, filtros, orden, paginación y detalle.
+- El listado admite `q`, `when=upcoming|past|all`, `sort=name_asc|name_desc|newest|oldest`, `page` y `limit` (máximo 50). Los próximos se calculan con `end_at` en `America/Bogota`; el público ve cantidad confirmada y cupos restantes, no la lista de inscritos ni `online_url`.
+- El detalle público incluye información de sede, club, organizador, galería y personal cuando el evento usa `staff_mode = 'Specific'`. Los cancelados se excluyen del listado y su detalle público muestra el motivo; los borradores no son accesibles.
+- Administración separada en SPN_AD, con alta mediante TSU, login, sesiones JWT y bloqueo por intentos fallidos. Aún sin 2FA ni interfaz propia.
+- El sistema no dispone todavía de API para crear o administrar eventos ni de API para inscripciones. La tabla de inscripciones sí existe en el esquema, pero no está conectada a un flujo de usuario.
+
+Para el detalle de rutas, límites y tareas pendientes, consultar `AI_CONTEXT.md`; para instalaciones y pruebas, `README.md`.
+
 ## 3. Tipos de usuario y permisos
 
 ### 3.1. Participante

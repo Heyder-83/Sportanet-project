@@ -779,6 +779,52 @@
     text-align: center;
 }
 
+/* Paneles de creación, gestión e inscripciones */
+.eventos-panel {
+    max-width: 1100px;
+    margin: 3rem auto;
+    padding: 2rem;
+    border: 1px solid rgba(0, 255, 127, 0.3);
+    border-radius: 14px;
+    background: #001f3f;
+    color: #f3f7fa;
+}
+
+.eventos-panel h2,
+.eventos-panel h3 { color: #00FF7F; }
+.evento-formulario { background: #002b4d; border-radius: 12px; padding: 1.5rem; }
+.evento-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.evento-form-grid label { display: grid; gap: 0.4rem; color: #e6eef7; }
+.evento-form-grid input,
+.evento-form-grid select,
+.evento-form-grid textarea {
+    width: 100%; min-width: 0; padding: 0.7rem; border: 1px solid #52718b; border-radius: 6px;
+    color: #fff; background: #001f3f; font: inherit;
+}
+.evento-form-wide { grid-column: 1 / -1; }
+.evento-ubicacion { border: 1px solid rgba(0, 255, 127, 0.25); border-radius: 8px; padding: 1rem; }
+.evento-ubicacion legend { color: #00FF7F; padding: 0 0.4rem; }
+.evento-form-actions,
+.evento-gestion-actions,
+.evento-inscrito-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-top: 1rem; }
+.evento-form-aviso { color: #ffd0d0; }
+.evento-gestion-lista,
+.evento-inscritos,
+#mis-inscripciones { display: grid; gap: 0.8rem; margin-top: 1.5rem; }
+.evento-gestion-card,
+.evento-inscripcion-card,
+.evento-inscrito-card { background: #002b4d; border: 1px solid rgba(0, 255, 127, 0.18); border-radius: 9px; padding: 1rem; }
+.evento-gestion-card h4,
+.evento-inscripcion-card h3 { color: #00FF7F; margin: 0 0 0.5rem; }
+.evento-gestion-card p,
+.evento-inscripcion-card p,
+.evento-inscrito-card p { margin: 0.25rem 0; color: #e6eef7; }
+.evento-gestion-actions button,
+.evento-inscrito-actions button { padding: 0.55rem 0.8rem; border-radius: 6px; cursor: pointer; }
+.btn-peligro { border: 1px solid #ff7b7b; background: transparent; color: #ffd0d0; }
+.btn-confirmar { border: 1px solid #00FF7F; background: #00FF7F; color: #001f3f; }
+.evento-gestion-vacio { text-align: center; color: #d7e1e9; padding: 1rem; }
+
 @media (max-width: 600px) {
     .eventos-buscador {
         flex-direction: column;
@@ -792,6 +838,10 @@
         grid-template-columns: 1fr;
         gap: 0.1rem;
     }
+
+    .eventos-panel { margin: 2rem 0.75rem; padding: 1rem; }
+    .evento-form-grid { grid-template-columns: 1fr; }
+    .evento-form-wide { grid-column: auto; }
 
     .detalle-cabecera,
     .detalle-titulo,

@@ -26,6 +26,18 @@
     const dialogBody = document.getElementById('evento-dialog-body');
     const dialogClose = document.getElementById('evento-dialog-cerrar');
     const toast = document.getElementById('eventos-aviso');
+    const organizerPanel = document.getElementById('panel-organizador');
+    const participantPanel = document.getElementById('panel-atleta');
+    const eventForm = document.getElementById('form-evento');
+    const eventFormTitle = document.getElementById('form-evento-titulo');
+    const eventFormSubmit = document.getElementById('evento-guardar');
+    const eventFormCancel = document.getElementById('evento-edicion-cancelar');
+    const eventFormNotice = document.getElementById('evento-form-aviso');
+    const organizerList = document.getElementById('eventos-organizador-lista');
+    const registrationsPanel = document.getElementById('panel-inscritos');
+    const registrationsList = document.getElementById('lista-inscritos');
+    const myRegistrations = document.getElementById('mis-inscripciones');
+    let editingEventId = null;
 
     const state = { q: '', sort: '', when: 'upcoming', page: 1, totalPages: 0, total: 0, requestId: 0, controller: null };
 
@@ -83,6 +95,43 @@
         showToast.timer = setTimeout(() => { toast.hidden = true; }, 5000);
     }
 
+    function signedInUser() {
+        try { return JSON.parse(localStorage.getItem('user') || 'null'); }
+        catch (_) { return null; }
+    }
+    function hasSession() { return Boolean(localStorage.getItem('auth_token') && signedInUser()); }
+    async function apiRequest(path, options = {}) {
+        const headers = new Headers(options.headers || {});
+        const token = localStorage.getItem('auth_token');
+        if (token) headers.set('Authorization', `Bearer ${token}`);
+        if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+        const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const error = new Error(body.error || `HTTP ${response.status}`);
+            error.code = body.code;
+            error.status = response.status;
+            throw error;
+        }
+        return body;
+    }
+    function statusText(status) {
+        return ({ Draft: 'Borrador', Published: 'Publicado', Completed: 'Finalizado', Canceled: 'Cancelado',
+            Pending: 'Pendiente', Confirmed: 'Confirmada', Waitlisted: 'En lista de espera' })[status] || status;
+    }
+    function showLogin() {
+        const modal = document.getElementById('modal-auth');
+        if (modal) { modal.classList.add('show'); modal.setAttribute('aria-hidden', 'false'); }
+        else showToast('Inicia sesión para continuar.');
+    }
+    function syncAccountPanels() {
+        const user = signedInUser();
+        organizerPanel.hidden = !(hasSession() && user?.role === 'Organizer');
+        participantPanel.hidden = !(hasSession() && user?.role === 'Participant');
+        if (!organizerPanel.hidden) loadOrganizerEvents();
+        if (!participantPanel.hidden) loadMyRegistrations();
+    }
+
     // ---------- tarjetas ----------
     function statusLabel(ev) {
         if (ev.status === 'Canceled') return 'Cancelado';
@@ -135,10 +184,16 @@
         const detailBtn = el('button', 'btn-detalles', 'Ver detalles');
         detailBtn.type = 'button';
         detailBtn.addEventListener('click', () => openDetail(ev.id, detailBtn));
-        const joinBtn = el('button', 'btn-inscribir', 'Inscribirse');
+        const user = signedInUser();
+        const joinBtn = el('button', 'btn-inscribir', user?.role === 'Organizer' ? 'Panel organizador' : ev.spots_left === 0 ? 'Lista de espera' : 'Inscribirse');
         joinBtn.type = 'button';
-        const closed = ev.is_past || ev.status === 'Canceled' || ev.spots_left === 0;
-        if (closed) {
+        const closed = ev.is_past || ev.status === 'Canceled';
+        if (user?.role === 'Organizer') {
+            joinBtn.addEventListener('click', () => organizerPanel.scrollIntoView({ behavior: 'smooth' }));
+        } else if (user?.role === 'Admin') {
+            joinBtn.disabled = true;
+            joinBtn.title = 'Las cuentas de administración no participan en eventos.';
+        } else if (closed) {
             joinBtn.disabled = true;
             joinBtn.title = statusLabel(ev) || '';
         } else {
@@ -156,18 +211,25 @@
         return item;
     }
 
-    // La inscripción en línea aún no existe en el backend: no se simula ningún resultado.
-    function join(ev) {
-        if (!localStorage.getItem('user')) {
-            showToast('Para inscribirte, primero inicia sesión.');
-            const modal = document.getElementById('modal-auth');
-            if (modal) {
-                modal.classList.add('show');
-                modal.setAttribute('aria-hidden', 'false');
-            }
-            return;
+    async function join(ev) {
+        if (!hasSession()) return showLogin();
+        if (signedInUser()?.role !== 'Participant') return showToast('Solo las cuentas de atleta pueden inscribirse.');
+        try {
+            const result = await apiRequest(`/api/events/${encodeURIComponent(ev.id)}/registrations`, { method: 'POST', body: '{}' });
+            const text = result.status === 'Confirmed' ? 'Inscripción confirmada.'
+                : result.status === 'Waitlisted' ? 'El evento está lleno; quedaste en lista de espera.'
+                    : result.payment_status === 'Pending' ? 'Inscripción pendiente de pago.'
+                        : 'Inscripción enviada al organizador para aprobación.';
+            showToast(text);
+            await Promise.all([load({ append: false }), loadMyRegistrations()]);
+        } catch (error) {
+            const messages = {
+                ALREADY_REGISTERED: 'Ya tienes una inscripción activa para este evento.',
+                REGISTRATION_CLOSED: 'El plazo de inscripción ya terminó.',
+                EVENT_NOT_FOUND: 'Este evento no admite inscripciones.'
+            };
+            showToast(messages[error.code] || 'No pudimos completar la inscripción.');
         }
-        showToast(`La inscripción en línea a «${ev.title}» todavía no está disponible. Muy pronto podrás hacerlo desde aquí.`);
     }
 
     // ---------- listado ----------
@@ -381,8 +443,17 @@
             });
             dialogBody.appendChild(box);
         }
+        const user = signedInUser();
+        if (ev.status === 'Published' && !ev.is_past && user?.role !== 'Organizer' && user?.role !== 'Admin') {
+            const join = el('button', 'btn-inscribir', ev.spots_left === 0 ? 'Unirme a lista de espera' : 'Inscribirme');
+            join.type = 'button';
+            join.addEventListener('click', () => joinEventFromDetail(ev));
+            dialogBody.appendChild(join);
+        }
         dialog.setAttribute('aria-labelledby', 'evento-dialog-titulo');
     }
+
+    function joinEventFromDetail(event) { return join(event); }
 
     let lastTrigger = null;
     async function openDetail(id, trigger) {
@@ -404,6 +475,214 @@
     dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); }); // clic en el fondo
     dialog.addEventListener('close', () => { if (lastTrigger) lastTrigger.focus(); });
 
+    // ---------- gestión de eventos para organizadores ----------
+    const modalitySelect = eventForm.elements.modality;
+    const venueFieldset = eventForm.querySelector('.evento-ubicacion');
+    const onlineUrlField = eventForm.elements.online_url;
+    function syncVenueFields() {
+        const visible = modalitySelect.value !== 'Virtual';
+        venueFieldset.hidden = !visible;
+        for (const field of venueFieldset.querySelectorAll('input')) field.required = visible;
+        onlineUrlField.required = modalitySelect.value === 'Virtual';
+    }
+    modalitySelect.addEventListener('change', syncVenueFields);
+    syncVenueFields();
+
+    function clearEventEditor() {
+        editingEventId = null;
+        eventForm.reset();
+        eventForm.elements.max_capacity.value = '20';
+        eventForm.elements.price.value = '0';
+        eventForm.elements.event_status.value = 'Draft';
+        eventFormTitle.textContent = 'Crear evento';
+        eventFormSubmit.textContent = 'Crear evento';
+        eventFormCancel.hidden = true;
+        eventFormNotice.hidden = true;
+        for (const field of [modalitySelect, ...venueFieldset.querySelectorAll('input')]) field.disabled = false;
+        syncVenueFields();
+    }
+    function dateForInput(value) { return typeof value === 'string' ? value.slice(0, 16) : ''; }
+    function editEvent(item) {
+        editingEventId = item.id;
+        eventForm.elements.title.value = item.title || '';
+        eventForm.elements.sport.value = item.sport || '';
+        eventForm.elements.event_description.value = item.event_description || '';
+        eventForm.elements.start_at.value = dateForInput(item.start_at);
+        eventForm.elements.end_at.value = dateForInput(item.end_at);
+        eventForm.elements.max_capacity.value = String(item.capacity);
+        eventForm.elements.price.value = String(item.price);
+        eventForm.elements.registration_deadline.value = dateForInput(item.registration_deadline);
+        eventForm.elements.event_status.value = item.status === 'Published' ? 'Published' : 'Draft';
+        // El esquema mantiene los recintos como registros compartidos. La edición de un evento no cambia su sede.
+        modalitySelect.value = item.modality;
+        eventForm.elements.approval_mode.value = item.approval_mode;
+        eventForm.elements.cover_image.value = item.cover_image || '';
+        onlineUrlField.value = item.online_url || '';
+        eventForm.elements.venue_name.value = item.venue_name || '';
+        eventForm.elements.venue_address.value = item.venue_address || '';
+        eventForm.elements.venue_city.value = item.venue_city || '';
+        modalitySelect.disabled = true;
+        for (const field of venueFieldset.querySelectorAll('input')) field.disabled = true;
+        syncVenueFields();
+        eventFormTitle.textContent = `Editar: ${item.title}`;
+        eventFormSubmit.textContent = 'Guardar cambios';
+        eventFormCancel.hidden = false;
+        eventFormNotice.hidden = true;
+        eventForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    eventFormCancel.addEventListener('click', clearEventEditor);
+    eventForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        eventFormNotice.hidden = true;
+        eventFormSubmit.disabled = true;
+        const values = Object.fromEntries(new FormData(eventForm).entries());
+        values.max_capacity = Number(values.max_capacity);
+        values.price = Number(values.price);
+        values.currency = 'COP';
+        try {
+            if (editingEventId) {
+                const editable = Object.fromEntries(['title', 'sport', 'event_description', 'start_at', 'end_at', 'max_capacity', 'price', 'registration_deadline', 'event_status', 'approval_mode', 'cover_image', 'online_url'].map((key) => [key, values[key]]));
+                await apiRequest(`/api/events/${editingEventId}`, { method: 'PUT', body: JSON.stringify(editable) });
+                showToast('Cambios guardados.');
+            } else {
+                await apiRequest('/api/events', { method: 'POST', body: JSON.stringify(values) });
+                showToast(values.event_status === 'Published' ? 'Evento publicado.' : 'Borrador guardado.');
+            }
+            clearEventEditor();
+            await Promise.all([loadOrganizerEvents(), load({ append: false })]);
+        } catch (error) {
+            const messages = {
+                VALIDATION_ERROR: 'Revisa los campos: título, fechas, cupos, precio y ubicación son obligatorios según la modalidad.',
+                CAPACITY_CONFLICT: 'No puedes reducir el cupo por debajo del número de inscripciones confirmadas.',
+                EVENT_CLOSED: 'Los eventos cancelados o finalizados ya no se pueden editar.'
+            };
+            eventFormNotice.textContent = messages[error.code] || 'No se pudo guardar el evento.';
+            eventFormNotice.hidden = false;
+        } finally { eventFormSubmit.disabled = false; }
+    });
+
+    async function loadOrganizerEvents() {
+        organizerList.replaceChildren(el('p', 'evento-gestion-vacio', 'Cargando tus eventos…'));
+        try {
+            const items = await apiRequest('/api/events/mine');
+            organizerList.replaceChildren();
+            if (!items.length) organizerList.appendChild(el('p', 'evento-gestion-vacio', 'Todavía no has creado eventos.'));
+            items.forEach((item) => {
+                const card = el('article', 'evento-gestion-card');
+                card.appendChild(el('h4', null, item.title));
+                card.appendChild(el('p', null, `${statusText(item.status)} · ${formatWhen(item.start_at, item.end_at)}`));
+                card.appendChild(el('p', null, `${item.confirmed_count} confirmados · ${item.pending_count} pendientes · ${item.capacity} cupos`));
+                if (item.venue_name) card.appendChild(el('p', null, [item.venue_name, item.venue_city].filter(Boolean).join(', ')));
+                const actions = el('div', 'evento-gestion-actions');
+                if (['Draft', 'Published'].includes(item.status)) {
+                    const edit = el('button', 'btn-detalles', 'Editar');
+                    edit.type = 'button'; edit.addEventListener('click', () => editEvent(item)); actions.appendChild(edit);
+                    const cancel = el('button', 'btn-peligro', 'Cancelar evento');
+                    cancel.type = 'button'; cancel.addEventListener('click', async () => {
+                        if (!window.confirm(`¿Cancelar «${item.title}»?`)) return;
+                        const reason = window.prompt('Motivo de cancelación (opcional):') || '';
+                        try {
+                            await apiRequest(`/api/events/${item.id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) });
+                            showToast('Evento cancelado.');
+                            await Promise.all([loadOrganizerEvents(), load({ append: false })]);
+                        } catch (_) { showToast('No se pudo cancelar el evento.'); }
+                    }); actions.appendChild(cancel);
+                }
+                if (item.status === 'Published') {
+                    const complete = el('button', 'btn-detalles', 'Marcar finalizado');
+                    complete.type = 'button'; complete.addEventListener('click', async () => {
+                        try {
+                            await apiRequest(`/api/events/${item.id}/complete`, { method: 'POST', body: '{}' });
+                            showToast('Evento marcado como finalizado.');
+                            await Promise.all([loadOrganizerEvents(), load({ append: false })]);
+                        } catch (error) {
+                            showToast(error.code === 'EVENT_NOT_ENDED' ? 'Solo puedes finalizarlo cuando termine.' : 'No se pudo finalizar el evento.');
+                        }
+                    }); actions.appendChild(complete);
+                }
+                const roster = el('button', 'btn-detalles', 'Ver inscripciones');
+                roster.type = 'button'; roster.addEventListener('click', () => loadEventRegistrations(item.id, item.title)); actions.appendChild(roster);
+                card.appendChild(actions);
+                organizerList.appendChild(card);
+            });
+        } catch (_) { organizerList.replaceChildren(el('p', 'evento-gestion-vacio', 'No pudimos cargar tus eventos. Inicia sesión de nuevo e inténtalo.')); }
+    }
+
+    async function loadEventRegistrations(eventId, title) {
+        registrationsPanel.hidden = false;
+        document.getElementById('inscritos-titulo').textContent = `Inscripciones: ${title}`;
+        registrationsList.replaceChildren(el('p', 'evento-gestion-vacio', 'Cargando…'));
+        try {
+            const items = await apiRequest(`/api/events/${eventId}/registrations`);
+            registrationsList.replaceChildren();
+            if (!items.length) registrationsList.appendChild(el('p', 'evento-gestion-vacio', 'Aún no hay inscripciones.'));
+            items.forEach((item) => {
+                const card = el('article', 'evento-inscrito-card');
+                card.appendChild(el('strong', null, item.full_name));
+                card.appendChild(el('p', null, item.email));
+                card.appendChild(el('p', null, `${statusText(item.status)} · ${item.payment_status === 'Pending' ? 'Pago pendiente' : item.payment_status === 'NotRequired' ? 'Sin pago requerido' : item.payment_status}`));
+                if (['Pending', 'Waitlisted'].includes(item.status)) {
+                    const actions = el('div', 'evento-inscrito-actions');
+                    const confirm = el('button', 'btn-confirmar', 'Confirmar');
+                    confirm.type = 'button'; confirm.addEventListener('click', () => updateRegistration(eventId, item.id, 'Confirmed', title));
+                    const cancel = el('button', 'btn-peligro', 'Cancelar inscripción');
+                    cancel.type = 'button'; cancel.addEventListener('click', () => updateRegistration(eventId, item.id, 'Canceled', title));
+                    actions.append(confirm, cancel); card.appendChild(actions);
+                } else if (item.status === 'Confirmed') {
+                    const cancel = el('button', 'btn-peligro', 'Cancelar inscripción');
+                    cancel.type = 'button'; cancel.addEventListener('click', () => updateRegistration(eventId, item.id, 'Canceled', title));
+                    card.appendChild(cancel);
+                }
+                registrationsList.appendChild(card);
+            });
+        } catch (_) { registrationsList.replaceChildren(el('p', 'evento-gestion-vacio', 'No se pudieron cargar las inscripciones.')); }
+    }
+    async function updateRegistration(eventId, registrationId, status, title) {
+        try {
+            await apiRequest(`/api/events/${eventId}/registrations/${registrationId}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+            showToast(status === 'Confirmed' ? 'Inscripción confirmada.' : 'Inscripción cancelada.');
+            await Promise.all([loadEventRegistrations(eventId, title), loadOrganizerEvents()]);
+        } catch (error) {
+            showToast(error.code === 'PAYMENT_REQUIRED' ? 'No se puede confirmar: falta verificar el pago.'
+                : error.code === 'EVENT_FULL' ? 'No hay cupos disponibles para confirmar esta inscripción.'
+                    : error.code === 'EVENT_CLOSED' ? 'No se pueden confirmar inscripciones de un evento cerrado.'
+                    : 'No se pudo actualizar la inscripción.');
+        }
+    }
+
+    // ---------- inscripciones de atletas ----------
+    async function loadMyRegistrations() {
+        myRegistrations.replaceChildren(el('p', 'evento-gestion-vacio', 'Cargando tus inscripciones…'));
+        try {
+            const items = await apiRequest('/api/events/registrations/mine');
+            myRegistrations.replaceChildren();
+            if (!items.length) myRegistrations.appendChild(el('p', 'evento-gestion-vacio', 'Aún no tienes inscripciones.'));
+            items.forEach((item) => {
+                const card = el('article', 'evento-inscripcion-card');
+                card.appendChild(el('h3', null, item.title));
+                card.appendChild(el('p', null, `${item.sport} · ${formatWhen(item.start_at, item.end_at)}`));
+                card.appendChild(el('p', null, `${statusText(item.status)} · ${item.payment_status === 'Pending' ? 'Pago pendiente' : item.payment_status === 'NotRequired' ? 'Sin pago requerido' : item.payment_status}`));
+                if (['Pending', 'Confirmed', 'Waitlisted'].includes(item.status) && item.event_status !== 'Completed') {
+                    const cancel = el('button', 'btn-peligro', 'Cancelar inscripción');
+                    cancel.type = 'button'; cancel.addEventListener('click', async () => {
+                        try {
+                            await apiRequest(`/api/events/${item.event_id}/registrations/mine`, { method: 'DELETE' });
+                            showToast('Inscripción cancelada.');
+                            await Promise.all([loadMyRegistrations(), load({ append: false })]);
+                        } catch (_) { showToast('No se pudo cancelar la inscripción.'); }
+                    });
+                    card.appendChild(cancel);
+                }
+                myRegistrations.appendChild(card);
+            });
+        } catch (_) { myRegistrations.replaceChildren(el('p', 'evento-gestion-vacio', 'No pudimos cargar tus inscripciones.')); }
+    }
+
+    window.addEventListener('sportanet:auth-changed', syncAccountPanels);
+    window.addEventListener('storage', (event) => {
+        if (event.key === 'auth_token' || event.key === 'user') syncAccountPanels();
+    });
+
     // ---------- inicio ----------
     const params = new URLSearchParams(location.search);
     const initialQ = (params.get('q') || '').trim().replace(/\s+/g, ' ').slice(0, MAX_QUERY);
@@ -418,5 +697,6 @@
         t.setAttribute('aria-selected', String(on));
         t.tabIndex = on ? 0 : -1;
     });
+    syncAccountPanels();
     load({ append: false });
 })();

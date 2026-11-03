@@ -35,7 +35,9 @@ app.get('/api/health/metrics', (req, res) => {
 app.use('/api/users', require('./routes/users'));
 app.use('/api/auth', require('./routes/auth'));
 // /api/events -> eventos públicos (listado y detalle, sin login)
-app.use('/api/events', require('./routes/events'));
+const eventRoutes = require('./routes/events');
+app.use('/api/events', eventRoutes.createManagedEventsRouter());
+app.use('/api/events', eventRoutes);
 
 // /api/admin -> alta de cuentas de administración (SPN_AD, base aparte). Solo se monta si SPN_AD está
 // configurada (DB_AD_NAME); en ese caso exige también DB_AD_USER, DB_AD_PASSWORD y TSU_HMAC_KEY y falla al arrancar si faltan.

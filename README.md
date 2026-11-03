@@ -175,7 +175,12 @@ Para ver eventos en `events.html` necesitas filas en `sport_events` con estado `
 
 La consulta pública no requiere iniciar sesión. `GET /api/events` permite buscar por nombre, elegir eventos próximos o pasados, ordenar y paginar resultados. `GET /api/events/:id` devuelve el detalle público. Los eventos próximos y pasados se determinan usando `end_at` en la zona `America/Bogota`; el listado público no muestra borradores ni cancelados. Los eventos cancelados pueden aparecer en su detalle si se consulta su ID.
 
-El listado y el detalle muestran la cantidad confirmada y los cupos restantes. La tabla `event_registrations` existe, pero todavía no hay endpoints de inscripción, creación o administración de eventos. El botón «Inscribirse» solo informa que la inscripción en línea no está disponible.
+El listado y el detalle muestran la cantidad confirmada y los cupos restantes. El inicio de sesión habilita las acciones según el rol:
+
+- **Organizador:** crear eventos como borrador o publicarlos, ver los propios, editarlos, cancelarlos o marcarlos finalizados; consultar inscripciones y confirmar/cancelar solicitudes.
+- **Atleta:** inscribirse, ver sus inscripciones y cancelar una inscripción antes de que termine el evento. Si se agotó el cupo puede unirse a la lista de espera.
+
+Una inscripción gratuita con aprobación automática se confirma al instante; la aprobación manual queda pendiente. Los eventos con costo generan una inscripción pendiente de pago. No se procesa ni verifica el pago en línea, así que esas inscripciones no se pueden confirmar desde la aplicación. La interfaz no expone `online_url` al público.
 
 ## Pruebas
 
@@ -186,9 +191,12 @@ Todos los comandos se ejecutan **desde `backend/`**.
 | `npm test` | Solo Node (sin base de datos) | Pruebas unitarias: validaciones, middleware, rutas con base simulada |
 | `npm run db:reset:test` | `.env.test` + MySQL | **Recrea `sportanet_test`** desde `schema.sql` y aplica todas las migraciones |
 | `npm run testsql` | `sportanet_test` lista | Esquema, consultas y API de eventos contra MySQL real |
+| `npm run testevents` | `sportanet_test` lista | Flujo API Organizador de SportaClub -> crea tres eventos -> atleta se inscribe desde el portal |
 | `npm run db:reset:ad-test` | `.env.test` + MySQL | **Recrea `spn_ad_test`** desde `Base de Datos/spn_ad/schema.sql` |
 | `npm run testad` | `spn_ad_test` lista | Esquema de SPN_AD, login y alta de administradores |
 | `npm run migrate:test` / `migrate:ad:test` | `.env.test` | Aplica migraciones pendientes a la base de prueba sin recrearla |
+
+`testevents` cubre la creación del perfil de Organizador, asociación a un club propio, creación/publicación de tres eventos con la misma sede y las inscripciones de un Atleta. El resto de casos de edición, cancelación, lista de espera, aprobación manual y pagos requiere cobertura adicional.
 
 ### Montar el entorno de pruebas desde cero
 
@@ -222,7 +230,7 @@ Después de añadir una migración nueva, repite `npm run db:reset:test` (y `db:
 2. **Iniciar Sesión** - Accede con tus credenciales
 3. **Mi Perfil** - Visualiza y edita tu información personal o elimina tu cuenta
 4. **Eventos** - Explora eventos deportivos (búsqueda por nombre, próximos/pasados y orden); no requiere cuenta
-5. **Inscripción** - La inscripción en línea aún no está disponible; el botón informa de su estado sin registrar una participación.
+5. **Inscripción** - Los atletas pueden inscribirse en eventos publicados, consultar el estado y cancelar antes del fin del evento.
 
 ---
 

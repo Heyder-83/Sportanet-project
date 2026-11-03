@@ -4,6 +4,22 @@ Este archivo registra los cambios relevantes realizados en Sportanet, incluyendo
 
 El formato está inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). El versionado se organiza por fases de desarrollo para facilitar el seguimiento incremental del proyecto.
 
+## [SPNdev.5] - 2026-11-03
+
+### Añadido
+- API protegida para crear, listar, editar, cancelar y finalizar eventos propios de un Organizador.
+- API para que los atletas se inscriban, consulten y cancelen sus inscripciones; incluye lista de espera cuando no hay cupos.
+- Gestión de solicitudes por el organizador: consulta de inscritos y confirmación/cancelación con comprobación transaccional de cupo.
+- Asociación opcional de eventos con un club propio del organizador mediante `club_id`; rechaza clubs que pertenecen a otro perfil.
+- Paneles en `events.html` para organizar eventos, revisar inscripciones y consultar las inscripciones del atleta.
+- Validación de datos del evento y de imágenes/enlaces antes de guardar; se reutilizan y crean sedes asociadas al perfil organizador.
+
+### Límites
+- No se procesan pagos. Las inscripciones a eventos con costo quedan pendientes de pago y no se pueden confirmar desde la aplicación.
+- Verificación de las suites existentes: `npm test` 133/133, `npm run testsql` 75/75 y `npm run testad` 30/30; las integraciones usan `sportanet_test` y `spn_ad_test`.
+- Prueba de integración `testevents`: crea el perfil Organizador, asocia el club SportaClub, crea tres eventos de 2027 en la misma sede y confirma que un Atleta puede inscribirse en los tres desde el API del portal.
+- Pendiente: ampliar la cobertura para edición, cancelación, lista de espera, aprobación manual y pagos.
+
 ## [SPNdev.4] - 2026-11-03
 
 ### Documentación

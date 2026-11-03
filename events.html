@@ -69,6 +69,52 @@
             <div id="evento-dialog-body"></div>
         </dialog>
 
+        <section class="eventos-panel" id="panel-organizador" hidden aria-labelledby="organizador-titulo">
+            <h2 id="organizador-titulo">Mis eventos</h2>
+            <p class="eventos-descripcion">Crea eventos y administra tus publicaciones e inscripciones.</p>
+            <form class="evento-formulario" id="form-evento">
+                <h3 id="form-evento-titulo">Crear evento</h3>
+                <div class="evento-form-grid">
+                    <label>Título<input name="title" maxlength="150" required></label>
+                    <label>Deporte<input name="sport" maxlength="50" required></label>
+                    <label>Inicio<input name="start_at" type="datetime-local" required></label>
+                    <label>Fin<input name="end_at" type="datetime-local" required></label>
+                    <label>Modalidad<select name="modality"><option value="InPerson">Presencial</option><option value="Virtual">Virtual</option><option value="Hybrid">Híbrido</option></select></label>
+                    <label>Cupos<input name="max_capacity" type="number" min="1" step="1" value="20" required></label>
+                    <label>Precio (COP)<input name="price" type="number" min="0" step="0.01" value="0" required></label>
+                    <label>Inscripciones hasta<input name="registration_deadline" type="datetime-local"></label>
+                    <label>Aprobación de inscripciones<select name="approval_mode"><option value="Automatic">Automática</option><option value="Manual">Manual</option></select></label>
+                    <label>Publicación<select name="event_status"><option value="Draft">Guardar como borrador</option><option value="Published">Publicar</option></select></label>
+                    <label class="evento-form-wide">Descripción<textarea name="event_description" rows="3" maxlength="65535"></textarea></label>
+                    <label class="evento-form-wide">Imagen de portada (URL https o ruta del sitio)<input name="cover_image" maxlength="500" placeholder="img/evento.jpg"></label>
+                    <label class="evento-form-wide" id="evento-enlace-wrap">Enlace de acceso (requerido para modalidad virtual)<input name="online_url" type="url" maxlength="500" placeholder="https://..."></label>
+                    <fieldset class="evento-form-wide evento-ubicacion">
+                        <legend>Ubicación (presencial o híbrida)</legend>
+                        <div class="evento-form-grid">
+                            <label>Recinto<input name="venue_name" maxlength="120"></label>
+                            <label>Dirección<input name="venue_address" maxlength="255"></label>
+                            <label>Ciudad<input name="venue_city" maxlength="100"></label>
+                        </div>
+                    </fieldset>
+                </div>
+                <p class="evento-form-aviso" id="evento-form-aviso" role="status" hidden></p>
+                <div class="evento-form-actions">
+                    <button class="btn-inscribir" type="submit" id="evento-guardar">Crear evento</button>
+                    <button class="btn-detalles" type="button" id="evento-edicion-cancelar" hidden>Dejar de editar</button>
+                </div>
+            </form>
+            <div class="evento-gestion-lista" id="eventos-organizador-lista" aria-live="polite"></div>
+            <section class="evento-inscritos" id="panel-inscritos" hidden aria-labelledby="inscritos-titulo">
+                <h3 id="inscritos-titulo">Inscripciones del evento</h3>
+                <div id="lista-inscritos"></div>
+            </section>
+        </section>
+
+        <section class="eventos-panel" id="panel-atleta" hidden aria-labelledby="atleta-titulo">
+            <h2 id="atleta-titulo">Mis inscripciones</h2>
+            <div id="mis-inscripciones" aria-live="polite"></div>
+        </section>
+
         <section class="contacto" id="contacto">
             <h2>Contáctanos</h2>
             <p>¿Tienes preguntas? Escríbenos a <a href="mailto:sportanet@gmail.com">sportanet@gmail.com</a></p>

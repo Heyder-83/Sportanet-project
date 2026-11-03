@@ -28,7 +28,9 @@ Esta especificación describe el producto objetivo; no todas las capacidades enu
 - El listado admite `q`, `when=upcoming|past|all`, `sort=name_asc|name_desc|newest|oldest`, `page` y `limit` (máximo 50). Los próximos se calculan con `end_at` en `America/Bogota`; el público ve cantidad confirmada y cupos restantes, no la lista de inscritos ni `online_url`.
 - El detalle público incluye información de sede, club, organizador, galería y personal cuando el evento usa `staff_mode = 'Specific'`. Los cancelados se excluyen del listado y su detalle público muestra el motivo; los borradores no son accesibles.
 - Administración separada en SPN_AD, con alta mediante TSU, login, sesiones JWT y bloqueo por intentos fallidos. Aún sin 2FA ni interfaz propia.
-- El sistema no dispone todavía de API para crear o administrar eventos ni de API para inscripciones. La tabla de inscripciones sí existe en el esquema, pero no está conectada a un flujo de usuario.
+- Los organizadores ya pueden crear/publicar eventos, editar los propios, cancelarlos o marcarlos finalizados; pueden revisar solicitudes y confirmar/cancelar inscripciones.
+- Los atletas ya pueden inscribirse, consultar sus inscripciones y cancelarlas antes del cierre del evento. El cupo se valida de forma transaccional y la base impide inscripciones duplicadas.
+- Las inscripciones con pago quedan pendientes; no existe pasarela ni verificación de pago. La edición de sede, personal y galería desde el panel todavía no está implementada.
 
 Para el detalle de rutas, límites y tareas pendientes, consultar `AI_CONTEXT.md`; para instalaciones y pruebas, `README.md`.
 

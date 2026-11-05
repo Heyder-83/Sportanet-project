@@ -74,6 +74,7 @@ Portal: **App Services → tu app → Settings → Environment variables → App
 | Variable | Valor |
 |---|---|
 | `NODE_ENV` | `production` |
+| `PORT` | `8080` (App Service con runtime Node; el código usa este valor si Azure no lo inyecta) |
 | `DB_HOST` | FQDN del servidor: `<servidor>.mysql.database.azure.com` (**no uses la IP**: el certificado se valida contra el nombre) |
 | `DB_PORT` | `3306` |
 | `DB_USER` / `DB_PASSWORD` / `DB_NAME` | usuario, contraseña y base principal (`sportanet_v1`) |

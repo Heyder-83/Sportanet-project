@@ -8,7 +8,7 @@ const cors = require('cors');
 const { createStabilityMonitor, createRateLimiter } = require('./middleware/stability');
 require('./config/jwt'); // falla al arrancar si JWT_SECRET no está definido (y carga el .env)
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 8080;
 const stabilityMonitor = createStabilityMonitor();
 const rateLimiter = createRateLimiter(stabilityMonitor, {
     windowMs: 60_000,

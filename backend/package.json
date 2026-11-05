@@ -14,7 +14,8 @@
     "migrate:ad": "node scripts/migrate.js --ad",
     "migrate:ad:test": "node --env-file=.env.test scripts/migrate.js --ad",
     "db:reset:ad-test": "node --env-file=.env.test scripts/migrate.js --ad --reset",
-    "testad": "node --env-file=.env.test --test test/integration/spn_ad.test.js"
+    "testad": "node --env-file=.env.test --test test/integration/spn_ad.test.js",
+    "testevents": "node --env-file=.env.test --test test/integration/events.test.js"
   },
   "keywords": [],
   "author": "",

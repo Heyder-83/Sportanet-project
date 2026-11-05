@@ -255,7 +255,7 @@ const send = (method, url, body, token) =>
     });
 
 const dbUser = async (id) => (await q('SELECT * FROM users WHERE user_id = ?', [id]))[0][0];
-const PUBLIC_KEYS = ['created_at', 'email', 'full_name', 'is_active', 'phone', 'role', 'updated_at', 'user_id'];
+const PUBLIC_KEYS = ['created_at', 'email', 'full_name', 'is_active', 'phone', 'profile_image', 'role', 'updated_at', 'user_id'];
 
 // Usuario insertado directo en la BD + token válido para él.
 async function actor(role = 'Participant') {

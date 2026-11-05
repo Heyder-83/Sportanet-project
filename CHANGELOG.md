@@ -4,6 +4,35 @@ Este archivo registra los cambios relevantes realizados en Sportanet, incluyendo
 
 El formato está inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). El versionado se organiza por fases de desarrollo para facilitar el seguimiento incremental del proyecto.
 
+## [Fase 2.1] - 2026-10-24
+
+API de eventos: consulta pública y publicación por organizadores. Solo backend; el frontend no cambia. Sin cambios de esquema ni migraciones.
+
+### Añadido
+- `backend/utils/eventInput.js`: validación pura de `POST /api/events` (campos, tipos, longitudes, fechas reales y coherentes, precio, moneda, zona horaria, enlaces http/https, ubicación y modalidad) y de `?limit` / `?offset`. Refleja los CHECK de `sport_events` y los límites de columnas de `sport_events` y `venues`.
+- `backend/db/events.js`: `listPublishedEvents`, `findPublishedEventById` (solo `Published` + `Public`; columnas fijas, sin `SELECT *`; fechas con `DATE_FORMAT` para que no se desplacen por zona horaria; DECIMAL convertido a número) y `createEvent` (organizador desde la cuenta, recinto nuevo y evento en una transacción con rollback; `EventDomainError` para `ORGANIZER_PROFILE_MISSING` y `VENUE_NOT_FOUND`).
+- `backend/routes/eventHandlers.js`: handlers con el acceso a datos inyectado (`createEventHandlers({ events })`), probables sin Express ni MySQL.
+- `backend/routes/events.js`: `GET /api/events`, `GET /api/events/:id` (públicos) y `POST /api/events` (`authenticate` → `requireRole('Organizer')` → handler).
+- Pruebas: `test/eventInput.test.js` (23), `test/eventsDb.test.js` (14), `test/eventHandlers.test.js` (17), `test/eventsRouter.test.js` (7) y `test/integration/events.test.js` (16).
+
+### Cambiado
+- `backend/app.js`: monta `/api/events` y actualiza el comentario de cabecera. Nada más.
+
+### Decisiones
+- Los eventos creados por la API nacen `Published` y `Public`; no se añaden borradores ni estados nuevos. `event_organizers_id`, `user_id`, `role`, `event_status`, `visibility` y `share_token` del body se ignoran.
+- Admin no puede crear eventos: no hay organizador al que atribuirlos y el mecanismo de administración de SPN_AD no está integrado. No se crea ningún atajo; recibe 403.
+- Un borrador, un evento privado, cancelado o completado y un id inexistente dan el mismo 404 en `GET /:id`.
+- Fechas como hora local del evento sin desplazamiento; la zona va aparte en `timezone`.
+
+### Verificación
+- **Ejecutado:** 61 pruebas unitarias nuevas, 61/61 (Node 22.22.0; sin MySQL ni Express). Además, 8 mutaciones deliberadas del código (quitar el filtro `Public`, dejar que el organizador del body prevalezca, quitar el rollback, invertir el orden de middlewares, quitar la comprobación `end_at > start_at`, usar `user_id` del body, aceptar `Z` en las fechas y filtrar el error de MySQL) fueron detectadas por al menos una prueba cada una.
+- **No ejecutado:** `npm test` completo (las dependencias no se pudieron instalar en el entorno de Claude: el registro de npm no respondía), `npm run testsql` y `test/integration/events.test.js` (16 pruebas, requieren MySQL). El SQL de `db/events.js` se revisó contra `schema.sql` pero no se probó contra una base real. Que los endpoints de autenticación siguen funcionando queda por confirmar con `npm test`, `testsql` y el último caso de la prueba de integración (registro → token → evento).
+
+### Pendiente
+- Ejecutar en MySQL 8.0.46: `npm test`, `npm run testsql` y `node --env-file=.env.test --test test/integration/events.test.js`.
+- Opcional: añadir a `backend/package.json` el script `"testevents": "node --env-file=.env.test --test test/integration/events.test.js"`.
+- Fase 2.2: ver y gestionar eventos propios (incluidos borradores), cancelar, y permisos de Admin cuando exista el mecanismo.
+
 ## [Fase 1F.3] - 2026-10-21
 
 Prueba de sobrecarga configurable con formato de llamadas y umbral de frenado.

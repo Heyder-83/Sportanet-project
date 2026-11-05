@@ -130,6 +130,18 @@ Los eventos virtuales o híbridos deben poder distinguirse de los presenciales s
 
 No se deben duplicar innecesariamente los datos de un club, organizador y recinto. Cada entidad debe representar un concepto diferente.
 
+### 5.4. Publicación y consulta de eventos (implementado en la Fase 2.1)
+
+Estado real de lo descrito en 5.1 a 5.3, verificado contra `Base de Datos/schema.sql`:
+
+- **Quién publica:** solo una cuenta con rol `Organizer` que tenga fila en `event_organizers`. El organizador del evento se obtiene de la sesión (JWT validado + BD); un `event_organizers_id`, `user_id` o rol enviado en el body se ignora. Un `Participant` recibe 403; sin sesión, 401.
+- **Publicación inmediata:** todo evento creado por la API nace `Published` y `Public` (con `published_at`). No se crean borradores, eventos privados ni `share_token` desde la API; `event_status` y `visibility` del body se ignoran. Los estados `Draft`, `Canceled` y `Completed` y la visibilidad `Private` existen en el esquema y se gestionarán en la Fase 2.2.
+- **Quién ve qué:** `GET /api/events` y `GET /api/events/:id` son públicos y solo devuelven eventos `Published` y `Public`. Un borrador, un evento privado, cancelado o completado, y un id inexistente dan el mismo 404, para no revelar que existe.
+- **Campos:** obligatorios `title`, `sport`, `max_capacity` (entero > 0), `start_at` y `end_at` (`end_at > start_at`). Opcionales `event_description`, `timezone` (IANA; por defecto `America/Bogota`), `modality` (`InPerson` por defecto, `Virtual`, `Hybrid`), `online_url` (obligatorio si es `Virtual`), `price` (>= 0, hasta 2 decimales; 0 por defecto), `currency` (`COP` por defecto), `registration_deadline` (<= `end_at`) y `cover_image` (URL http/https). Estas reglas repiten los CHECK de la tabla `sport_events` para devolver un 400 claro en lugar de un error de BD.
+- **Fechas:** se envían y se reciben como hora local del evento, sin desplazamiento (`2026-12-15T08:00`); la zona va en `timezone`. Se rechazan `Z` y desplazamientos (la columna es `DATETIME` sin zona).
+- **Ubicación:** un evento presencial o híbrido exige ubicación: `venue` (recinto nuevo: `name`, `address`, `city`; opcionales `region`, `country_code`, `latitude` y `longitude`, estas dos juntas) o `venue_id` (existente), nunca ambos. Un evento virtual no admite ubicación. El recinto nuevo y el evento se guardan en una sola transacción: si algo falla no queda ninguno de los dos. Se conservan dirección, ciudad y coordenadas para que una fase posterior genere enlaces a mapas; no se usa ninguna API externa.
+- **Pendiente:** administración de eventos propios y permisos de Admin (Fase 2.2; el mecanismo de administración de SPN_AD aún no está integrado y no se crea ningún atajo), cupos ocupados en el listado (depende de las reglas de inscripción, Fase 2.3) y ocultar o completar eventos ya terminados.
+
 ## 6. Inscripciones
 
 El sistema debe permitir que un participante se inscriba en un evento publicado y habilitado para inscripciones.
@@ -214,6 +226,8 @@ Como estructura funcional de referencia:
 - `/api/registrations`: inscripciones y sus estados.
 
 Estas rutas son una propuesta de organización funcional. Antes de implementarlas, se deben revisar las rutas existentes y evitar duplicarlas o romper su compatibilidad.
+
+Estado: `/api/auth`, `/api/users` y `/api/events` (`GET /`, `GET /:id`, `POST /`; ver 5.4) están implementadas. `/api/registrations` no existe todavía. Respuestas de `/api/events`: el listado devuelve un arreglo (acepta `?limit=1..100`, por defecto 50, y `?offset`); el detalle, un objeto; la creación, `201 { message, event }`; los errores, `{ error, code }` y, en validación, `fields`.
 
 Los errores deben manejarse con códigos HTTP apropiados y mensajes comprensibles, sin exponer detalles internos.
 

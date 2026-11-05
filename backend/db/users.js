@@ -38,7 +38,7 @@ async function findAuthUserByEmail(email) {
 // Usuarios no eliminados (los desactivados aparecen, con is_active = 0).
 async function listActiveUsers() {
     const [rows] = await db().query(
-        'SELECT user_id, full_name, email, phone, role, is_active, created_at, updated_at FROM users WHERE deleted_at IS NULL ORDER BY user_id'
+        `SELECT ${PUBLIC_COLUMNS} FROM users WHERE deleted_at IS NULL ORDER BY user_id`
     );
     return rows;
 }

@@ -254,6 +254,7 @@ CREATE TABLE `users` (
   `full_name` varchar(100) NOT NULL,
   `email` varchar(100) NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
+  `profile_image` mediumtext,
   `pwd` varchar(255) NOT NULL,
   `role` enum('Participant','Organizer','Admin') NOT NULL DEFAULT 'Participant',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',

@@ -509,7 +509,7 @@ function updateUIAfterLogout() {
     const btnLogin = document.getElementById("btn-login");
     const userMenuContainer = document.getElementById("user-menu-container");
 
-    if (btnLogin) btnLogin.style.display = "block";
+    if (btnLogin) btnLogin.style.display = "";
     if (userMenuContainer) userMenuContainer.style.display = "none";
 }
 
@@ -545,6 +545,25 @@ function initProfileEvents() {
     const btnConfirmarEliminar = document.getElementById("btn-confirmar-eliminar");
     const modalConfirmarEliminar = document.getElementById("modal-confirmar-eliminar");
     const btnEditarPerfil = document.getElementById("btn-editar-perfil");
+    const profilePhoto = document.getElementById("perfil-foto");
+    const removePhoto = document.getElementById("btn-quitar-foto");
+
+    profilePhoto?.addEventListener("change", () => {
+        const file = profilePhoto.files?.[0];
+        if (!file) return;
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 512 * 1024) {
+            profilePhoto.value = "";
+            showProfileMessage("error", "Elige una imagen JPG, PNG o WebP de máximo 512 KB.");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => setProfileImagePreview(reader.result);
+        reader.readAsDataURL(file);
+    });
+    removePhoto?.addEventListener("click", () => {
+        if (profilePhoto) profilePhoto.value = "";
+        setProfileImagePreview(null);
+    });
 
     // Abrir modal de perfil
     btnProfile?.addEventListener("click", (e) => {
@@ -632,6 +651,7 @@ function openProfileModal() {
     const inputNombre = document.getElementById("perfil-nombre");
     const inputEmail = document.getElementById("perfil-email");
     const inputPhone = document.getElementById("perfil-phone");
+    const inputRole = document.getElementById("perfil-tipo");
     
     console.log("Input elements found:", {
         nombre: !!inputNombre,
@@ -652,6 +672,13 @@ function openProfileModal() {
         inputPhone.value = user.phone || "";
         console.log("Set phone to:", inputPhone.value);
     }
+    if (inputRole) inputRole.value = user.role === "Organizer" ? "Organizador" : user.role === "Participant" ? "Atleta" : (user.role || "");
+    setProfileImagePreview(user.profile_image || null);
+    const photoInput = document.getElementById("perfil-foto");
+    if (photoInput) { photoInput.value = ""; photoInput.disabled = true; }
+    const removePhoto = document.getElementById("btn-quitar-foto");
+    if (removePhoto) removePhoto.disabled = true;
+    loadProfileDetails(user.id);
 
     // Modo por defecto: SOLO LECTURA
     const btnEditar = document.getElementById("btn-editar-perfil");
@@ -675,7 +702,40 @@ function openProfileModal() {
     // Limpiar mensajes previos
     clearProfileMessages();
     
-    console.log("=== Modal opened successfully ===");
+}
+
+async function loadProfileDetails(userId) {
+    if (!userId || !APP_STATE.token) return;
+    try {
+        const response = await fetch(`${APP_STATE.API_URL}/api/users/${userId}`, {
+            headers: { "Authorization": `Bearer ${APP_STATE.token}` }
+        });
+        if (!response.ok) return;
+        const profile = await response.json();
+        const merged = { ...APP_STATE.currentUser, ...profile, id: userId };
+        APP_STATE.currentUser = merged;
+        localStorage.setItem("user", JSON.stringify(merged));
+        const roleField = document.getElementById("perfil-tipo");
+        if (roleField) roleField.value = profile.role === "Organizer" ? "Organizador" : profile.role === "Participant" ? "Atleta" : (profile.role || "");
+        setProfileImagePreview(profile.profile_image || null);
+    } catch (error) {
+        console.error("No se pudo cargar la foto de perfil:", error);
+    }
+}
+
+function setProfileImagePreview(src) {
+    const image = document.getElementById("perfil-avatar");
+    const placeholder = document.getElementById("perfil-avatar-placeholder");
+    if (!image || !placeholder) return;
+    if (src) {
+        image.src = src;
+        image.hidden = false;
+        placeholder.hidden = true;
+    } else {
+        image.removeAttribute("src");
+        image.hidden = true;
+        placeholder.hidden = false;
+    }
 }
 
 /**
@@ -699,6 +759,8 @@ function enableProfileEdit() {
     const btnEditar = document.getElementById("btn-editar-perfil");
     const perfilButtons = document.getElementById("perfil-buttons");
     const dangerZone = document.getElementById("danger-zone") || document.querySelector('.danger-zone');
+    const photoInput = document.getElementById("perfil-foto");
+    const removePhoto = document.getElementById("btn-quitar-foto");
 
     if (inputNombre) inputNombre.removeAttribute('readonly');
     if (inputEmail) inputEmail.removeAttribute('readonly');
@@ -707,6 +769,8 @@ function enableProfileEdit() {
     if (btnEditar) btnEditar.style.display = 'none';
     if (perfilButtons) perfilButtons.style.display = 'flex';
     if (dangerZone) dangerZone.style.display = 'block';
+    if (photoInput) photoInput.disabled = false;
+    if (removePhoto) removePhoto.disabled = false;
 
     // Focus en el primer campo para editar
     if (inputNombre) inputNombre.focus();
@@ -723,11 +787,16 @@ function revertProfileReadOnly() {
     const btnEditar = document.getElementById("btn-editar-perfil");
     const perfilButtons = document.getElementById("perfil-buttons");
     const dangerZone = document.getElementById("danger-zone") || document.querySelector('.danger-zone');
+    const photoInput = document.getElementById("perfil-foto");
+    const removePhoto = document.getElementById("btn-quitar-foto");
 
     // Restaurar valores desde usuario
     if (inputNombre) inputNombre.value = user.full_name || user.nombre || "";
     if (inputEmail) inputEmail.value = user.email || "";
     if (inputPhone) inputPhone.value = user.phone || "";
+    setProfileImagePreview(user.profile_image || null);
+    if (photoInput) { photoInput.value = ""; photoInput.disabled = true; }
+    if (removePhoto) removePhoto.disabled = true;
 
     // Dejar en readonly
     if (inputNombre) inputNombre.setAttribute('readonly', true);
@@ -923,7 +992,8 @@ async function handleUpdateProfile() {
             body: JSON.stringify({
                 full_name: nombre,
                 email: email,
-                phone: phone
+                phone: phone,
+                profile_image: document.getElementById("perfil-avatar")?.hidden ? null : document.getElementById("perfil-avatar")?.src
             })
         });
 
@@ -937,7 +1007,8 @@ async function handleUpdateProfile() {
                 ...user,
                 full_name: nombre,
                 email: email,
-                phone: phone
+                phone: phone,
+                profile_image: document.getElementById("perfil-avatar")?.hidden ? null : document.getElementById("perfil-avatar")?.src
             };
             localStorage.setItem("user", JSON.stringify(updatedUser));
             APP_STATE.currentUser = updatedUser;

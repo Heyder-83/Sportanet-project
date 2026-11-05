@@ -5,7 +5,7 @@
 //   GET    /api/users       Admin            lista de usuarios no eliminados
 //   GET    /api/users/:id   propio o Admin   un usuario
 //   POST   /api/users       Admin            crea un usuario (rol Participant; la contraseña se hashea)
-//   PUT    /api/users/:id   propio o Admin   full_name, email, phone, pwd (el resto del body se ignora)
+//   PUT    /api/users/:id   propio o Admin   full_name, email, phone, pwd y profile_image (el resto se ignora)
 //   DELETE /api/users/:id   propio o Admin   borrado lógico (is_active = 0, deleted_at = NOW())
 //
 // role e is_active nunca se leen del body. Nunca se devuelve pwd.
@@ -75,6 +75,14 @@ router.post('/', requireRole(ROLES.ADMIN), async (req, res) => {
 // Solo full_name, email, phone y pwd. Cualquier otra clave del body (role, is_active...) se ignora.
 router.put('/:id', parseIdParam, requireSelfOrAdmin, async (req, res) => {
     const { data, invalid } = validateBody(req.body, { requireAll: false });
+    if (req.body?.profile_image !== undefined) {
+        const image = req.body.profile_image;
+        const validImage = image === null || image === '' ||
+            (typeof image === 'string' && image.length <= 700_000 &&
+                /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(image));
+        if (!validImage) invalid.push('profile_image');
+        else data.profile_image = image || null;
+    }
     if (invalid.length) return badRequest(res, invalid);
     if (Object.keys(data).length === 0) {
         return res.status(400).json({ error: 'No fields provided to update', code: 'NO_FIELDS' });

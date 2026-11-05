@@ -2,7 +2,7 @@
 
 ## Descripción del Proyecto
 
-Sportanet es una plataforma web para descubrir eventos deportivos. Permite registrarse, crear perfiles y consultar eventos publicados. La gestión de eventos por organizadores y las inscripciones en línea están en desarrollo; la página pública de eventos está conectada a la base de datos y no simula inscripciones.
+Sportanet es una plataforma web para descubrir eventos deportivos. Permite registrarse como atleta u organizador, consultar eventos publicados y gestionar eventos e inscripciones. Los perfiles muestran el tipo de cuenta y permiten guardar una foto.
 
 ## Tecnologías Usadas
 

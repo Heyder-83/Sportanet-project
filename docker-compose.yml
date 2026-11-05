@@ -1,0 +1,43 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sportanet_v1
+      MYSQL_USER: sportanet
+      MYSQL_PASSWORD: sportanet
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./Base de Datos/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      PORT: 5000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: sportanet
+      DB_PASSWORD: sportanet
+      DB_NAME: sportanet_v1
+      JWT_SECRET: "cambiar_esto_por_un_secreto_largo_y_aleatorio_min_32_chars"
+    ports:
+      - "5000:5000"
+    command: sh -lc "node scripts/migrate.js --yes && node app.js"
+
+volumes:
+  mysql_data:

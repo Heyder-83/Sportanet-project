@@ -4,6 +4,15 @@ Este archivo registra los cambios relevantes realizados en Sportanet, incluyendo
 
 El formato está inspirado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). El versionado se organiza por fases de desarrollo para facilitar el seguimiento incremental del proyecto.
 
+## [Sin publicar]
+
+### Añadido
+- El perfil muestra el tipo de cuenta y permite seleccionar, previsualizar, guardar o quitar una foto JPG, PNG o WebP de hasta 512 KB.
+- Migración `005_user_profile_image.sql` para persistir la imagen opcional del usuario.
+
+### Corregido
+- El menú de usuario ya no aparece sin sesión: se quitó la regla CSS que ignoraba su estado oculto.
+
 ## [SPNdev.5] - 2026-11-03
 
 ### Añadido

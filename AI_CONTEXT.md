@@ -13,6 +13,7 @@ Estado revisado el 2026-11-03. Después de SPNdev.4 se implementó localmente el
 - Registro e inicio de sesión de cuentas Participante y Organizador. El formulario público no puede crear administradores; la creación de Organizador y su perfil se realiza en una transacción.
 - JWT de usuario y middleware que consulta el estado y rol vigentes de la cuenta. `GET /api/auth/me` devuelve la identidad autenticada.
 - API de usuarios protegida por autenticación y autorización por rol/propiedad. No expone el hash de contraseña y elimina cuentas mediante borrado lógico.
+- El perfil permite ver el tipo de cuenta y guardar una imagen JPG/PNG/WebP de hasta 512 KB. La migración `005_user_profile_image.sql` está pendiente de aplicar en la base principal.
 - Eventos: listado y detalle públicos (`GET /api/events`, `GET /api/events/:id`), además de gestión autenticada para organizadores y registro/cancelación de atletas. El detalle de rutas está abajo.
 - `events.html` consulta la API y ofrece búsqueda, filtros, orden y paginación; también muestra el panel de creación/gestión al organizador y las inscripciones propias al atleta.
 - Línea de administración separada en la base `SPN_AD`: alta con TSU de un solo uso (`POST /api/admin/register`), login (`POST /api/admin/login`), consulta de sesión (`GET /api/admin/me`), JWT de administrador de 30 minutos y bloqueo temporal tras cinco intentos fallidos. Las rutas se montan solo al configurar `DB_AD_NAME`. No hay 2FA ni interfaz de administración.
@@ -21,8 +22,8 @@ Estado revisado el 2026-11-03. Después de SPNdev.4 se implementó localmente el
 
 ## Esquema y migraciones
 
-- El esquema base está en `Base de Datos/schema.sql`; las migraciones actuales son `001_events_staff_mode.sql` a `004_events_drop_visibility.sql`.
-- El esquema efectivo es `schema.sql` más las cuatro migraciones. Entre otros cambios, estas añaden `staff_mode`, `event_staff` y `event_images`, y eliminan la visibilidad privada y los tokens de compartir.
+- El esquema base está en `Base de Datos/schema.sql`; las migraciones del repositorio van de `001_events_staff_mode.sql` a `005_user_profile_image.sql`.
+- El esquema efectivo incluye las migraciones pendientes según cada base. Entre otros cambios, estas añaden `staff_mode`, `event_staff`, `event_images` e imagen de perfil, y eliminan la visibilidad privada y los tokens de compartir.
 - `sport_events` contiene título, deporte, descripción, portada, fechas de inicio/fin, zona horaria, modalidad, capacidad, precio/moneda, límite de inscripción, estado, sede/club y organizador. Los estados del esquema son `Draft`, `Published`, `Completed` y `Canceled`; la modalidad es `InPerson`, `Virtual` o `Hybrid`.
 - El esquema incluye `event_registrations` con estados `Pending`, `Confirmed`, `Waitlisted` y `Canceled`, además de estados de pago. El flujo de inscripción ya está conectado a esa tabla; los pagos todavía no se procesan.
 - SPN_AD es una base aparte: los administradores no son filas de `users` ni usan `users.role = 'Admin'`.

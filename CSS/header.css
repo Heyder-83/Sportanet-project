@@ -85,9 +85,44 @@
 
 /* Menú de usuario (cuando está logueado) */
 .user-menu-container {
-    display: flex !important;
+    display: flex;
     align-items: center;
     gap: 1rem;
+}
+
+.profile-picture-section {
+    display: grid;
+    justify-items: center;
+    gap: 0.5rem;
+    margin: 1rem 0 1.5rem;
+    text-align: center;
+}
+
+.profile-avatar,
+.profile-avatar-placeholder {
+    width: 112px;
+    height: 112px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #00FF7F;
+}
+
+.profile-avatar[hidden],
+.profile-avatar-placeholder[hidden] {
+    display: none;
+}
+
+.profile-avatar-placeholder {
+    display: grid;
+    place-items: center;
+    background: #001f3f;
+    color: #00FF7F;
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.profile-picture-section small {
+    color: #667085;
 }
 
 .user-info {

@@ -9,10 +9,10 @@ const db = () => pool.promise();
 
 // Columnas que se pueden devolver por la API. Sin pwd; deleted_at no hace falta porque
 // las consultas públicas excluyen las cuentas eliminadas.
-const PUBLIC_COLUMNS = 'user_id, full_name, email, phone, role, is_active, created_at, updated_at';
+const PUBLIC_COLUMNS = 'user_id, full_name, email, phone, role, profile_image, is_active, created_at, updated_at';
 
 // Únicos campos que un cliente puede cambiar en su cuenta. role / is_active NO están aquí a propósito.
-const UPDATABLE_COLUMNS = ['full_name', 'email', 'phone', 'pwd'];
+const UPDATABLE_COLUMNS = ['full_name', 'email', 'phone', 'pwd', 'profile_image'];
 
 // Estado de cuenta para el middleware de autenticación (incluye cuentas eliminadas o desactivadas).
 // Devuelve { user_id, email, role, is_active, deleted_at } o null si no existe.
@@ -38,7 +38,7 @@ async function findAuthUserByEmail(email) {
 // Usuarios no eliminados (los desactivados aparecen, con is_active = 0).
 async function listActiveUsers() {
     const [rows] = await db().query(
-        `SELECT ${PUBLIC_COLUMNS} FROM users WHERE deleted_at IS NULL ORDER BY user_id`
+        'SELECT user_id, full_name, email, phone, role, is_active, created_at, updated_at FROM users WHERE deleted_at IS NULL ORDER BY user_id'
     );
     return rows;
 }

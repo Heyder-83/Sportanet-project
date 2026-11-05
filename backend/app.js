@@ -32,10 +32,20 @@ app.get('/api/health/metrics', (req, res) => {
 // Rutas principales de la API
 // /api/users -> CRUD de usuarios
 // /api/auth  -> Registro y login (emisión de JWT)
-// /api/events -> Consulta pública de eventos y publicación (solo Organizer)
 app.use('/api/users', require('./routes/users'));
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/events', require('./routes/events'));
+// /api/events -> eventos públicos (listado y detalle, sin login)
+const eventRoutes = require('./routes/events');
+app.use('/api/events', eventRoutes.createManagedEventsRouter());
+app.use('/api/events', eventRoutes);
+
+// /api/admin -> alta de cuentas de administración (SPN_AD, base aparte). Solo se monta si SPN_AD está
+// configurada (DB_AD_NAME); en ese caso exige también DB_AD_USER, DB_AD_PASSWORD y TSU_HMAC_KEY y falla al arrancar si faltan.
+if (process.env.DB_AD_NAME) {
+    app.use('/api/admin', require('./routes/adminAuth'));
+} else {
+    console.log('SPN_AD no configurada (DB_AD_NAME): rutas /api/admin desactivadas');
+}
 
 // Server
 

@@ -1,160 +1,163 @@
 // backend/db/events.js
-// Consultas de eventos. Solo columnas verificadas en Base de Datos/schema.sql (`sport_events`, `venues`,
-// `event_organizers`). Todas las consultas son parametrizadas y las listas de columnas son fijas: ningún nombre de
-// columna sale de datos del cliente. Nunca se selecciona share_token ni datos de cuenta del organizador.
+// Consultas PÚBLICAS de eventos (portal sin login). Solo lectura.
+//
+// Reglas de visibilidad (las decide esta capa, no el frontend):
+//   - Borradores (Draft): nunca se ven.
+//   - Listado: solo Published y Completed. Los cancelados no salen en el listado.
+//   - Detalle: Published, Completed y Canceled (quien tenga el enlace ve que se canceló). Draft -> no existe.
+//   - Próximo = Published y termina después de "ahora"; Pasado = Completed, o Published que ya terminó.
+// Las fechas se devuelven como texto 'YYYY-MM-DDTHH:MM:SS' (hora de pared, sin zona) junto con `timezone`.
+// Nunca se devuelven: online_url (enlace de acceso), user_id del personal, correos, datos de inscritos.
 const pool = require('./connection');
+const { escapeLike } = require('../utils/eventsQuery');
 
-const db = () => pool.promise();
+const q = (sql, params) => pool.promise().query(sql, params);
+const ISO = "'%Y-%m-%dT%H:%i:%s'";
 
-// Error de regla de negocio detectado dentro de la transacción (no es un error de MySQL). Las rutas lo traducen
-// a una respuesta 4xx; el código viaja en `domainCode`.
-class EventDomainError extends Error {
-    constructor(domainCode) {
-        super(domainCode);
-        this.name = 'EventDomainError';
-        this.domainCode = domainCode;
+const ORDER = Object.freeze({
+    name_asc: 'e.title ASC, e.sport_event_id ASC',
+    name_desc: 'e.title DESC, e.sport_event_id ASC',
+    newest: 'e.start_at DESC, e.sport_event_id DESC',
+    oldest: 'e.start_at ASC, e.sport_event_id ASC'
+});
+// Sin sort: lo próximo por orden de llegada (el más cercano primero); lo pasado, lo más reciente primero.
+const defaultSort = (when) => (when === 'upcoming' ? 'oldest' : 'newest');
+
+const CONFIRMED_COUNT = `(SELECT COUNT(*) FROM event_registrations r
+        WHERE r.sport_event_id = e.sport_event_id AND r.registration_status = 'Confirmed')`;
+
+function whereFor({ q: text, when }, now) {
+    const where = [];
+    const params = [];
+    if (when === 'upcoming') {
+        where.push("e.event_status = 'Published' AND e.end_at > ?");
+        params.push(now);
+    } else if (when === 'past') {
+        where.push("(e.event_status = 'Completed' OR (e.event_status = 'Published' AND e.end_at <= ?))");
+        params.push(now);
+    } else {
+        where.push("e.event_status IN ('Published', 'Completed')");
     }
+    if (text) {
+        where.push("e.title LIKE ? ESCAPE '|'");
+        params.push(`%${escapeLike(text)}%`);
+    }
+    return { sql: where.join(' AND '), params };
 }
-const ORGANIZER_PROFILE_MISSING = 'ORGANIZER_PROFILE_MISSING'; // la cuenta no tiene fila en event_organizers
-const VENUE_NOT_FOUND = 'VENUE_NOT_FOUND'; // venue_id no existe
 
-// Las fechas salen como texto "YYYY-MM-DDTHH:MM:SS" tal como están en la BD (hora local del evento, ver `timezone`).
-// Si salieran como Date, mysql2 las interpretaría en la zona del servidor y el JSON las desplazaría (Z).
-const fmt = (col) => `DATE_FORMAT(${col}, '%Y-%m-%dT%H:%i:%s')`;
+const isoNow = (now) => now.replace(' ', 'T');
+const money = (v) => Number(v);
+const club = (id, name) => (id == null ? null : { id, name });
 
-// Eventos visibles para cualquiera: publicados Y públicos. Es la única condición de visibilidad de esta fase;
-// borradores, privados, cancelados y completados no salen en la API pública.
-const PUBLIC_EVENT_SELECT = `
-    SELECT e.sport_event_id, e.title, e.event_description, e.sport, e.max_capacity, e.cover_image, e.event_status,
-           ${fmt('e.start_at')} AS start_at, ${fmt('e.end_at')} AS end_at, e.timezone, e.modality, e.online_url,
-           e.price, e.currency, ${fmt('e.registration_deadline')} AS registration_deadline,
-           ${fmt('e.published_at')} AS published_at,
-           o.event_organizers_id AS organizer_id, o.display_name AS organizer_name,
-           v.venue_id, v.name AS venue_name, v.address AS venue_address, v.city AS venue_city,
-           v.region AS venue_region, v.country_code AS venue_country_code,
-           v.latitude AS venue_latitude, v.longitude AS venue_longitude
-    FROM sport_events e
-    JOIN event_organizers o ON o.event_organizers_id = e.event_organizers_id
-    LEFT JOIN venues v ON v.venue_id = e.venue_id
-    WHERE e.event_status = 'Published' AND e.visibility = 'Public'`;
+// Listado paginado. `now` = 'YYYY-MM-DD HH:MM:SS' (ver utils/eventsQuery.nowLocal).
+async function listPublicEvents({ q: text, sort, when, page, limit }, now) {
+    const { sql: whereSql, params } = whereFor({ q: text, when }, now);
+    const order = ORDER[sort || defaultSort(when)];
 
-const asNumberOrNull = (v) => (v === null || v === undefined ? null : Number(v));
+    const [[{ total }]] = await q(`SELECT COUNT(*) AS total FROM sport_events e WHERE ${whereSql}`, params);
+    const [rows] = await q(
+        `SELECT e.sport_event_id AS id, e.title, e.sport, LEFT(e.event_description, 240) AS excerpt, e.cover_image,
+                DATE_FORMAT(e.start_at, ${ISO}) AS start_at, DATE_FORMAT(e.end_at, ${ISO}) AS end_at,
+                e.timezone, e.modality, e.price, e.currency, e.event_status AS status, e.max_capacity,
+                c.club_id, c.club_name, v.name AS venue_name, v.city AS venue_city,
+                ${CONFIRMED_COUNT} AS confirmed_count
+           FROM sport_events e
+           LEFT JOIN clubs c ON c.club_id = e.club_id
+           LEFT JOIN venues v ON v.venue_id = e.venue_id
+          WHERE ${whereSql}
+          ORDER BY ${order}
+          LIMIT ? OFFSET ?`,
+        [...params, limit, (page - 1) * limit]
+    );
 
-// Fila SQL -> objeto de la API. DECIMAL llega como texto desde mysql2 ("50000.00"): se convierte a número.
-function toPublicEvent(row) {
+    const nowIso = isoNow(now);
     return {
-        sport_event_id: row.sport_event_id,
-        title: row.title,
-        event_description: row.event_description,
-        sport: row.sport,
-        max_capacity: row.max_capacity,
-        cover_image: row.cover_image,
-        event_status: row.event_status,
-        start_at: row.start_at,
-        end_at: row.end_at,
-        timezone: row.timezone,
-        modality: row.modality,
-        online_url: row.online_url,
-        price: Number(row.price),
-        currency: row.currency,
-        registration_deadline: row.registration_deadline,
-        published_at: row.published_at,
-        organizer: { event_organizers_id: row.organizer_id, display_name: row.organizer_name },
-        venue: row.venue_id === null || row.venue_id === undefined
-            ? null
-            : {
-                venue_id: row.venue_id,
-                name: row.venue_name,
-                address: row.venue_address,
-                city: row.venue_city,
-                region: row.venue_region,
-                country_code: row.venue_country_code,
-                latitude: asNumberOrNull(row.venue_latitude),
-                longitude: asNumberOrNull(row.venue_longitude)
-            }
+        total: Number(total),
+        items: rows.map((r) => ({
+            id: r.id,
+            title: r.title,
+            sport: r.sport,
+            excerpt: r.excerpt,
+            cover_image: r.cover_image,
+            start_at: r.start_at,
+            end_at: r.end_at,
+            timezone: r.timezone,
+            modality: r.modality,
+            price: money(r.price),
+            currency: r.currency,
+            status: r.status,
+            is_past: r.status === 'Completed' || r.end_at <= nowIso,
+            capacity: r.max_capacity,
+            confirmed_count: Number(r.confirmed_count),
+            spots_left: Math.max(0, r.max_capacity - Number(r.confirmed_count)),
+            club: club(r.club_id, r.club_name),
+            venue: r.venue_name == null ? null : { name: r.venue_name, city: r.venue_city }
+        }))
     };
 }
 
-// Lista pública, ordenada por fecha de inicio (usa idx_events_listing). limit y offset ya validados como enteros.
-async function listPublishedEvents({ limit, offset }) {
-    const [rows] = await db().query(
-        `${PUBLIC_EVENT_SELECT} ORDER BY e.start_at ASC, e.sport_event_id ASC LIMIT ? OFFSET ?`,
-        [limit, offset]
+// Detalle de un evento. Devuelve null si no existe o es un borrador.
+async function findPublicEventById(id, now) {
+    const [rows] = await q(
+        `SELECT e.sport_event_id AS id, e.title, e.sport, e.event_description AS description, e.cover_image,
+                DATE_FORMAT(e.start_at, ${ISO}) AS start_at, DATE_FORMAT(e.end_at, ${ISO}) AS end_at,
+                DATE_FORMAT(e.registration_deadline, ${ISO}) AS registration_deadline,
+                e.timezone, e.modality, e.price, e.currency, e.event_status AS status, e.cancel_reason,
+                e.max_capacity, e.staff_mode, o.display_name AS organizer_name,
+                c.club_id, c.club_name, c.address AS club_address,
+                v.name AS venue_name, v.address AS venue_address, v.city AS venue_city, v.region AS venue_region,
+                v.country_code AS venue_country, v.latitude, v.longitude,
+                ${CONFIRMED_COUNT} AS confirmed_count
+           FROM sport_events e
+           JOIN event_organizers o ON o.event_organizers_id = e.event_organizers_id
+           LEFT JOIN clubs c ON c.club_id = e.club_id
+           LEFT JOIN venues v ON v.venue_id = e.venue_id
+          WHERE e.sport_event_id = ? AND e.event_status IN ('Published', 'Completed', 'Canceled')`,
+        [id]
     );
-    return rows.map(toPublicEvent);
+    const r = rows[0];
+    if (!r) return null;
+
+    const [[staffRows], [imageRows]] = await Promise.all([
+        r.staff_mode === 'Specific'
+            ? q('SELECT display_name, role_title FROM event_staff WHERE sport_event_id = ? ORDER BY event_staff_id', [id])
+            : Promise.resolve([[]]),
+        q('SELECT url, alt_text FROM event_images WHERE sport_event_id = ? ORDER BY position, event_image_id', [id])
+    ]);
+
+    const confirmed = Number(r.confirmed_count);
+    return {
+        id: r.id,
+        title: r.title,
+        sport: r.sport,
+        description: r.description,
+        cover_image: r.cover_image,
+        start_at: r.start_at,
+        end_at: r.end_at,
+        registration_deadline: r.registration_deadline,
+        timezone: r.timezone,
+        modality: r.modality,
+        price: money(r.price),
+        currency: r.currency,
+        status: r.status,
+        cancel_reason: r.status === 'Canceled' ? r.cancel_reason : null,
+        is_past: r.status === 'Completed' || r.end_at <= isoNow(now),
+        capacity: r.max_capacity,
+        confirmed_count: confirmed,
+        spots_left: Math.max(0, r.max_capacity - confirmed),
+        organizer: { name: r.organizer_name },
+        club: r.club_id == null ? null : { id: r.club_id, name: r.club_name, address: r.club_address },
+        venue: r.venue_name == null ? null : {
+            name: r.venue_name, address: r.venue_address, city: r.venue_city, region: r.venue_region,
+            country_code: r.venue_country,
+            latitude: r.latitude == null ? null : Number(r.latitude),
+            longitude: r.longitude == null ? null : Number(r.longitude)
+        },
+        // 'Club' = lo organiza el club en general (sin delegados); 'Specific' = estas personas.
+        staff_mode: r.staff_mode,
+        staff: staffRows.map((s) => ({ name: s.display_name, role: s.role_title })),
+        images: imageRows.map((i) => ({ url: i.url, alt: i.alt_text }))
+    };
 }
 
-// Un evento publicado y público, o null (un borrador, un privado o un id inexistente son indistinguibles: null).
-async function findPublishedEventById(eventId) {
-    const [rows] = await db().query(`${PUBLIC_EVENT_SELECT} AND e.sport_event_id = ?`, [eventId]);
-    return rows[0] ? toPublicEvent(rows[0]) : null;
-}
-
-// INSERT con lista de columnas FIJA (la que pasa el llamador, nunca claves del cliente) y los valores definidos.
-function insertSql(table, columns, values, extra = '') {
-    const cols = columns.filter((c) => values[c] !== undefined);
-    const sql = `INSERT INTO ${table} (${cols.join(', ')}${extra ? `, ${extra.col}` : ''}) ` +
-        `VALUES (${cols.map(() => '?').join(', ')}${extra ? `, ${extra.val}` : ''})`;
-    return { sql, params: cols.map((c) => values[c]) };
-}
-
-const VENUE_COLUMNS = ['created_by_organizer_id', 'name', 'address', 'city', 'region', 'country_code', 'latitude', 'longitude'];
-const EVENT_COLUMNS = [
-    'event_organizers_id', 'venue_id', 'title', 'event_description', 'sport', 'max_capacity', 'cover_image',
-    'event_status', 'start_at', 'end_at', 'timezone', 'modality', 'online_url', 'price', 'currency',
-    'registration_deadline', 'visibility'
-];
-
-// Crea un evento PUBLICADO y PÚBLICO a nombre del organizador de la cuenta `userId` (leída de la sesión, nunca del body).
-// Si trae `venue` (recinto nuevo), el recinto y el evento se crean en UNA transacción: si algo falla, no queda
-// ni el uno ni el otro. Si trae `venueId`, solo se comprueba que exista.
-// Lanza EventDomainError(ORGANIZER_PROFILE_MISSING | VENUE_NOT_FOUND) o el error de MySQL (tras revertir).
-// Devuelve el sport_event_id nuevo.
-async function createEvent({ userId, event, venueId, venue }) {
-    const conn = await db().getConnection();
-    try {
-        await conn.beginTransaction();
-
-        const [orgRows] = await conn.query('SELECT event_organizers_id FROM event_organizers WHERE user_id = ?', [userId]);
-        if (!orgRows[0]) throw new EventDomainError(ORGANIZER_PROFILE_MISSING);
-        const organizerId = orgRows[0].event_organizers_id;
-
-        let resolvedVenueId = null;
-        if (venue) {
-            const ins = insertSql('venues', VENUE_COLUMNS, { ...venue, created_by_organizer_id: organizerId });
-            const [r] = await conn.query(ins.sql, ins.params);
-            resolvedVenueId = r.insertId;
-        } else if (venueId !== undefined) {
-            const [vRows] = await conn.query('SELECT venue_id FROM venues WHERE venue_id = ?', [venueId]);
-            if (!vRows[0]) throw new EventDomainError(VENUE_NOT_FOUND);
-            resolvedVenueId = venueId;
-        }
-
-        const values = {
-            ...event,
-            event_organizers_id: organizerId,
-            venue_id: resolvedVenueId,
-            event_status: 'Published',
-            visibility: 'Public'
-        };
-        const ins = insertSql('sport_events', EVENT_COLUMNS, values, { col: 'published_at', val: 'NOW()' });
-        const [result] = await conn.query(ins.sql, ins.params);
-
-        await conn.commit();
-        return result.insertId;
-    } catch (err) {
-        try { await conn.rollback(); } catch (_) { /* el error original es el que importa */ }
-        throw err;
-    } finally {
-        conn.release();
-    }
-}
-
-module.exports = {
-    EventDomainError,
-    ORGANIZER_PROFILE_MISSING,
-    VENUE_NOT_FOUND,
-    listPublishedEvents,
-    findPublishedEventById,
-    createEvent
-};
+module.exports = { listPublicEvents, findPublicEventById };

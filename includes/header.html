@@ -177,6 +177,18 @@
         <!-- FORMULARIO EDITAR PERFIL -->
         <form id="form-editar-perfil" class="profile-form">
             <h2 id="perfil-title">Mi Perfil</h2>
+            <section class="profile-picture-section" aria-label="Foto de perfil">
+                <img id="perfil-avatar" class="profile-avatar" alt="Foto de perfil" hidden>
+                <div id="perfil-avatar-placeholder" class="profile-avatar-placeholder" aria-hidden="true">SN</div>
+                <label for="perfil-foto" class="profile-photo-label">Foto de perfil</label>
+                <input id="perfil-foto" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="perfil-foto-ayuda">
+                <small id="perfil-foto-ayuda">JPG, PNG o WebP. Máximo 512 KB.</small>
+                <button type="button" id="btn-quitar-foto" class="link-button">Quitar foto</button>
+            </section>
+            <div class="form-group">
+                <label for="perfil-tipo">Tipo de usuario</label>
+                <input type="text" id="perfil-tipo" readonly aria-label="Tipo de usuario">
+            </div>
             
             <div class="form-group">
                 <label for="perfil-nombre">Nombre Completo</label>

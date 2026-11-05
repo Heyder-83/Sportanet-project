@@ -7,6 +7,7 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env'), quiet: true });
 const mysql = require('mysql2');
+const { sslOption } = require('../utils/dbSsl');
 
 const env = process.env;
 const missing = ['DB_AD_NAME', 'DB_AD_USER', 'DB_AD_PASSWORD'].filter((k) => typeof env[k] !== 'string' || env[k] === '');
@@ -29,7 +30,9 @@ const pool = mysql.createPool({
     port: parseInt(env.DB_AD_PORT || env.DB_PORT || '3306', 10),
     user: env.DB_AD_USER,
     password: env.DB_AD_PASSWORD,
-    database: env.DB_AD_NAME
+    database: env.DB_AD_NAME,
+    // TLS: mismas variables que la base principal (DB_SSL, DB_SSL_CA); ver utils/dbSsl.js.
+    ...sslOption(env)
 });
 
 module.exports = pool;

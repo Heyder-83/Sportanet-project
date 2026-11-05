@@ -14,6 +14,10 @@
 //         DB_AD_PASSWORD (sin valores por defecto) y la carpeta "Base de Datos/spn_ad/". Se combina con el resto:
 //         npm run migrate:ad:test | npm run db:reset:ad-test | npm run migrate:ad -- --dry-run
 //
+// TLS: DB_SSL=true activa TLS con validación de certificado (rejectUnauthorized siempre true) y DB_SSL_CA indica
+//   el PEM de la CA raíz (Azure Database for MySQL). Aplica a la conexión principal y a --ad. Si el certificado
+//   falta o es inválido, aborta antes de conectar. Con DB_SSL=false (por defecto) no exige TLS. Ver utils/dbSsl.js.
+//
 // Convenciones:
 // - Archivos en "Base de Datos/migrations/" con nombre NNN_descripcion.sql (p. ej. 002_users_avatar.sql).
 //   NNN es la versión que se guarda en la tabla schema_migrations; se aplican en orden numérico.
@@ -30,6 +34,7 @@ const readline = require('node:readline/promises');
 // dotenv no pisa variables ya definidas, así que `node --env-file=.env.test` gana sobre backend/.env.
 require('dotenv').config({ path: path.resolve(__dirname, '../.env'), quiet: true });
 const mysql = require('mysql2/promise');
+const { sslOption } = require('../utils/dbSsl');
 
 const args = process.argv.slice(2);
 const has = (name) => args.includes(name);
@@ -57,20 +62,36 @@ if (AD) {
 }
 const dbName = AD ? env.DB_AD_NAME : (env.DB_NAME || 'sportanet_v1');
 const isTestDb = /^[A-Za-z0-9_]+_test$/.test(dbName);
+
+// TLS (DB_SSL / DB_SSL_CA, ver utils/dbSsl.js): se aplica a la conexión principal y a SPN_AD (--ad).
+// Si DB_SSL=true y el certificado falta o es inválido, se aborta antes de intentar conectar (nunca sin TLS).
+let tlsConfig;
+try {
+    tlsConfig = sslOption(env);
+} catch (err) {
+    console.error(`\nERROR: ${err.message}`);
+    process.exit(1);
+}
+const tlsLabel = tlsConfig.ssl
+    ? `TLS activado (rejectUnauthorized=true, ${tlsConfig.ssl.ca ? 'CA de DB_SSL_CA' : 'CA del sistema'})`
+    : 'TLS desactivado (DB_SSL=false)';
+
 const baseConfig = AD
     ? {
         host: env.DB_AD_HOST || env.DB_HOST || 'localhost',
         port: parseInt(env.DB_AD_PORT || env.DB_PORT || '3306', 10),
         user: env.DB_AD_USER,
         password: env.DB_AD_PASSWORD,
-        multipleStatements: true
+        multipleStatements: true,
+        ...tlsConfig
     }
     : {
         host: env.DB_HOST || 'localhost',
         port: env.DB_PORT ? parseInt(env.DB_PORT, 10) : 3306,
         user: env.DB_USER || 'root',
         password: env.DB_PASSWORD || 'root',
-        multipleStatements: true
+        multipleStatements: true,
+        ...tlsConfig
     };
 
 function fail(message) {
@@ -131,6 +152,7 @@ async function resetTestDb() {
 
 async function main() {
     console.log(`Destino: ${baseConfig.user}@${baseConfig.host}:${baseConfig.port}/${dbName}`);
+    console.log(`Conexión: ${tlsLabel}`);
     console.log(`Migraciones: ${MIGRATIONS_DIR}`);
 
     const migrations = listMigrations();

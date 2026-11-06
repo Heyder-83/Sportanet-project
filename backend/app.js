@@ -39,6 +39,15 @@ const eventRoutes = require('./routes/events');
 app.use('/api/events', eventRoutes.createManagedEventsRouter());
 app.use('/api/events', eventRoutes);
 
+// Ruta raíz: confirma que la API está en línea
+app.get('/', (req, res) => {
+  res.json({
+    message: 'API Sportanet funcionando',
+    version: '1.0.0',
+    endpoints: ['/api/users', '/api/auth', '/api/events', '/api/health/metrics']
+  });
+});
+
 // /api/admin -> alta de cuentas de administración (SPN_AD, base aparte). Solo se monta si SPN_AD está
 // configurada (DB_AD_NAME); en ese caso exige también DB_AD_USER, DB_AD_PASSWORD y TSU_HMAC_KEY y falla al arrancar si faltan.
 if (process.env.DB_AD_NAME) {

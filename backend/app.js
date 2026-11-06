@@ -5,6 +5,7 @@
 // - Inicia el servidor en el puerto configurado
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { createStabilityMonitor, createRateLimiter } = require('./middleware/stability');
 require('./config/jwt'); // falla al arrancar si JWT_SECRET no está definido (y carga el .env)
 const app = express();
@@ -39,15 +40,6 @@ const eventRoutes = require('./routes/events');
 app.use('/api/events', eventRoutes.createManagedEventsRouter());
 app.use('/api/events', eventRoutes);
 
-// Ruta raíz: confirma que la API está en línea
-app.get('/', (req, res) => {
-  res.json({
-    message: 'API Sportanet funcionando',
-    version: '1.0.0',
-    endpoints: ['/api/users', '/api/auth', '/api/events', '/api/health/metrics']
-  });
-});
-
 // /api/admin -> alta de cuentas de administración (SPN_AD, base aparte). Solo se monta si SPN_AD está
 // configurada (DB_AD_NAME); en ese caso exige también DB_AD_USER, DB_AD_PASSWORD y TSU_HMAC_KEY y falla al arrancar si faltan.
 if (process.env.DB_AD_NAME) {
@@ -55,6 +47,14 @@ if (process.env.DB_AD_NAME) {
 } else {
     console.log('SPN_AD no configurada (DB_AD_NAME): rutas /api/admin desactivadas');
 }
+
+// Servir archivos estáticos desde la raíz del proyecto desplegado
+app.use(express.static(path.join(__dirname, '..')));
+
+// (Opcional) Si quieres que cualquier ruta no-API devuelva el index.html
+// app.get('*', (req, res) => {
+//   res.sendFile(path.join(__dirname, '..', 'index.html'));
+// });
 
 // Server
 

@@ -163,7 +163,7 @@ cd backend
 npm start
 ```
 
-El servidor queda en `http://localhost:5000`. El frontend tiene esa dirección fija (`JS/header.js` y `JS/events.js`), así que no cambies `PORT` sin cambiarla también allí.
+El servidor queda en `http://localhost:5000`. Si abres el frontend con Live Server en otro puerto, la API apunta automáticamente a `http://localhost:5000`; cuando frontend y backend comparten origen (como en Azure App Service), utiliza rutas relativas `/api/...`. Para un backend local en otra dirección, puedes definir `window.SPORTANET_API_URL` antes de cargar los scripts del frontend.
 
 ### 5. Abrir el frontend
 

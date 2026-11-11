@@ -1,9 +1,25 @@
 // ===== ESTADO DE LA APLICACIÓN =====
+// En Azure, frontend y API comparten origen: se usan rutas relativas (/api/...).
+// En desarrollo con Live Server (puerto distinto de 5000), se conserva el backend local.
+// Puede definirse window.SPORTANET_API_URL antes de cargar este archivo para sobrescribirlo.
+const API_BASE_URL = (() => {
+    const configuredUrl = window.SPORTANET_API_URL;
+    if (typeof configuredUrl === 'string' && configuredUrl.trim()) {
+        return configuredUrl.trim().replace(/\/+$/, '');
+    }
+
+    const localHosts = ['localhost', '127.0.0.1'];
+    const isSeparateLocalFrontend = localHosts.includes(window.location.hostname)
+        && window.location.port !== '5000';
+
+    return isSeparateLocalFrontend ? 'http://localhost:5000' : '';
+})();
+
 const APP_STATE = {
     isLoggedIn: false,
     currentUser: null,
     token: localStorage.getItem('auth_token') || null,
-    API_URL: 'http://localhost:5000'  // URL del backend
+    API_URL: API_BASE_URL
 };
 
 // ===== INICIALIZACIÓN =====

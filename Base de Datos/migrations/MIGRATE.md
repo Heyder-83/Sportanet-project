@@ -18,7 +18,7 @@ Mira qué versiones hay registradas en la BD principal:
 SELECT version, description, applied_at FROM schema_migrations;
 ```
 
-Las migraciones `001` a `004` ya están en el repositorio. Antes de crear la siguiente, consulta la base destino: si una versión coincide con otra ya registrada, `migrate.js` la considera aplicada y la omite. Numera por encima de la más alta que exista tanto en el repositorio como en la base destino.
+Las migraciones `001` a `005` ya están en el repositorio. Antes de crear la siguiente, consulta la base destino: si una versión coincide con otra ya registrada, `migrate.js` la considera aplicada y la omite. Numera por encima de la más alta que exista tanto en el repositorio como en la base destino.
 
 ## Flujo (desde `backend/`)
 

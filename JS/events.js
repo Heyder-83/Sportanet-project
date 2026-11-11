@@ -5,8 +5,21 @@
 (function () {
     'use strict';
 
-    // Debe coincidir con APP_STATE.API_URL de JS/header.js.
-    const API_URL = 'http://localhost:5000';
+    // En Azure se usa el mismo origen mediante rutas relativas.
+    // En desarrollo con Live Server se conserva el backend local del puerto 5000.
+    // Puede definirse window.SPORTANET_API_URL antes de cargar este archivo para sobrescribirlo.
+    const API_URL = (() => {
+        const configuredUrl = window.SPORTANET_API_URL;
+        if (typeof configuredUrl === 'string' && configuredUrl.trim()) {
+            return configuredUrl.trim().replace(/\/+$/, '');
+        }
+
+        const localHosts = ['localhost', '127.0.0.1'];
+        const isSeparateLocalFrontend = localHosts.includes(window.location.hostname)
+            && window.location.port !== '5000';
+
+        return isSeparateLocalFrontend ? 'http://localhost:5000' : '';
+    })();
     const PAGE_SIZE = 12;
     const SEARCH_DELAY_MS = 350;
     const MAX_QUERY = 100;

@@ -88,13 +88,26 @@ test('dbFail: ER_DUP_ENTRY se clasifica por el nombre de la clave (MySQL 8, Mari
     assert.equal(noMsg.body.code, 'DUPLICATE');
 });
 
-test('dbFail: cualquier otro error -> 500 genérico y el log solo lleva la etiqueta y el código', (t) => {
+test('dbFail: error SQL -> 500 genérico y el log solo lleva la etiqueta y el código', (t) => {
     const spy = t.mock.method(console, 'error', () => {});
     const res = fakeRes();
     dbFail(Object.assign(new Error("Unknown column 'phone'"), { code: 'ER_BAD_FIELD_ERROR', sql: 'SELECT phone FROM users', sqlMessage: "Unknown column 'phone'" }), res, 'auth');
     assert.equal(res.statusCode, 500);
     assert.deepEqual(res.body, { error: 'Internal error', code: 'DB_ERROR' });
     assert.deepEqual(spy.mock.calls[0].arguments, ['[auth] error de BD:', 'ER_BAD_FIELD_ERROR']);
+});
+
+test('dbFail: error de conexión -> registra el diagnóstico sin cambiar la respuesta genérica', (t) => {
+    const spy = t.mock.method(console, 'error', () => {});
+    const res = fakeRes();
+    dbFail(Object.assign(new Error('connect ECONNREFUSED 10.1.2.3:3306'), { code: 'ECONNREFUSED' }), res, 'auth');
+    assert.equal(res.statusCode, 500);
+    assert.deepEqual(res.body, { error: 'Internal error', code: 'DB_ERROR' });
+    assert.deepEqual(spy.mock.calls[0].arguments, [
+        '[auth] error de BD:',
+        'ECONNREFUSED',
+        'connect ECONNREFUSED 10.1.2.3:3306'
+    ]);
 });
 
 test('dbFail: error sin código (o que no es un objeto) -> 500 genérico, "sin código" en el log', (t) => {

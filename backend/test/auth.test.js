@@ -211,6 +211,17 @@ test('register: un error de BD no filtra SQL, hash, tablas ni columnas, ni a la 
     assert.ok(!/full_name|INSERT|HASH-SECRETO|\$2/.test(log), 'el log contiene SQL, hash o columnas');
 });
 
+test('register: un error de conexión registra la causa sin exponerla en la respuesta', async (t) => {
+    const logged = captureErrors(t);
+    handler = async () => {
+        throw Object.assign(new Error('connect ECONNREFUSED 10.1.2.3:3306'), { code: 'ECONNREFUSED' });
+    };
+    const res = await post('/register', validRegister());
+    assert.equal(res.status, 500);
+    assert.deepEqual(await res.json(), { error: 'Internal error', code: 'DB_ERROR' });
+    assert.match(logged(), /ECONNREFUSED.*connect ECONNREFUSED 10\.1\.2\.3:3306/);
+});
+
 test('register: un fallo inesperado en bcrypt -> 500 genérico (no cuelga ni tumba el proceso)', async (t) => {
     const logged = captureErrors(t);
     t.mock.method(bcrypt, 'hash', async () => { throw new Error('fallo interno de bcrypt'); });

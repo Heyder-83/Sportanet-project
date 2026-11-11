@@ -110,6 +110,20 @@ test('dbFail: error de conexión -> registra el diagnóstico sin cambiar la resp
     ]);
 });
 
+test('dbFail: error TLS -> registra el diagnóstico de handshake', (t) => {
+    const spy = t.mock.method(console, 'error', () => {});
+    const res = fakeRes();
+    dbFail(Object.assign(new Error('self-signed certificate in certificate chain'), {
+        code: 'SELF_SIGNED_CERT_IN_CHAIN'
+    }), res, 'auth');
+    assert.equal(res.statusCode, 500);
+    assert.deepEqual(spy.mock.calls[0].arguments, [
+        '[auth] error de BD:',
+        'SELF_SIGNED_CERT_IN_CHAIN',
+        'self-signed certificate in certificate chain'
+    ]);
+});
+
 test('dbFail: error sin código (o que no es un objeto) -> 500 genérico, "sin código" en el log', (t) => {
     const spy = t.mock.method(console, 'error', () => {});
     for (const err of [new Error('x'), undefined, null, 'texto']) {

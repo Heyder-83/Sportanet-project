@@ -43,6 +43,9 @@ API de eventos: consulta pública y publicación por organizadores. Solo backend
 ### Corregido
 - El menú de usuario ya no aparece sin sesión: se quitó la regla CSS que ignoraba su estado oculto.
 
+### Documentación
+- Se registró en `AI_CONTEXT.md` el chat con IA como pendiente diferido al siguiente semestre (evaluación de costos), con notas de diseño y decisiones abiertas. Solo documentación: sin cambios de código, rutas ni dependencias.
+
 ## [SPNdev.5] - 2026-11-03
 
 ### Añadido

@@ -64,7 +64,7 @@ Estado revisado el 2026-11-03. Después de SPNdev.4 se implementó localmente el
 - Preparado para despliegue en Railway (DB) + Render (backend + frontend).
 
 ### Fase siguiente
-- **Plan Fase 2 (aprobado por el usuario):** 2.1 API de eventos (hecha, pendiente de verificar en MySQL) · 2.2 administración de eventos propios (editar/cancelar; permisos administrativos cuando existan) · 2.3 inscripciones (cupos, duplicados) · 2.4 frontend (plantilla de creación, tarjetas dinámicas, detalle, enlaces a mapas, menú por rol, reemplazo del botón «Salir») · 2.5 despliegue (Render + Railway) · 2.6 correos con Make y asistente IA. Nota de numeración: el CHANGELOG usa «1F.2/1F.3» para estabilidad y prueba de carga, y este archivo usa «1F.2…1F.5» para TSU/2FA/login de admin; conviene renumerar uno de los dos.
+- **Plan Fase 2 (aprobado por el usuario):** 2.1 API de eventos (hecha, pendiente de verificar en MySQL) · 2.2 administración de eventos propios (editar/cancelar; permisos administrativos cuando existan) · 2.3 inscripciones (cupos, duplicados) · 2.4 frontend (plantilla de creación, tarjetas dinámicas, detalle, enlaces a mapas, menú por rol, reemplazo del botón «Salir») · 2.5 despliegue (Render + Railway) · 2.6 correos con Make y asistente IA (el chat con IA queda diferido al siguiente semestre; ver «Chat con IA (diferido)» más abajo). Nota de numeración: el CHANGELOG usa «1F.2/1F.3» para estabilidad y prueba de carga, y este archivo usa «1F.2…1F.5» para TSU/2FA/login de admin; conviene renumerar uno de los dos.
 - Antes de la primera migración: `SELECT * FROM schema_migrations;` en `sportanet_v1` para numerar por encima de las versiones registradas.
 - **Medición y estabilidad del backend (1F.2, aplicado):** se incorporó un monitor de carga (`createStabilityMonitor`), un limitador de ráfagas (`createRateLimiter`) y un endpoint `/api/health/metrics` para medir peticiones aceptadas/bloqueadas. También se restringió el tamaño del payload JSON y URL-encoded a `1mb` para evitar sobrecarga por cuerpos excesivos. Existe un script `npm run measure:load` para ejecutar una prueba de carga simple.
 - **Prueba de sobrecarga configurable (1F.3, aplicado):** se añadió `backend/config.json`, `backend/utils/loadConfig.js`, `backend/utils/loadPlan.js`, `backend/test/loadConfig.test.js` y `backend/test/loadPlan.test.js` para aceptar el formato `Calls = {número, frecuencia, duración unidad}` con validación de `1-60` y unidades `seg|min|hor|dia`. La configuración se centraliza en un único sitio y el script `backend/scripts/load-test.js` lo ejecuta de forma reproducible, con soporte de overrides por CLI.
@@ -122,9 +122,24 @@ Estado revisado el 2026-11-03. Después de SPNdev.4 se implementó localmente el
 - Restringir CORS para producción y añadir limitación específica de intentos a `/api/auth/login`.
 - Revisar política de contraseñas y decisión sobre liberar correo/teléfono al borrar lógicamente una cuenta.
 - Despliegue de base de datos, backend y frontend.
+- **Chat con IA (diferido al siguiente semestre):** asistente para que los usuarios consulten sobre la página, el servicio y los eventos. Se pospone porque evaluar los costos excede el tiempo del semestre actual. Estado: solo diseño; no hay código, rutas ni dependencias. Notas en «Chat con IA (diferido)».
  origin/main
 
 La especificación funcional de `PROJECT_LOGIC.md` describe capacidades objetivo; no implica que ya estén implementadas. Para el estado real, contrastar este archivo con el código y el changelog.
+
+## Chat con IA (diferido)
+
+Decisión del equipo (2026-11-11): se implementa el siguiente semestre. Nada de esto está implementado; son notas para retomar el tema.
+
+- **Objetivo:** chat para que los usuarios consulten sobre la página, el servicio y los eventos.
+- **Proveedor candidato:** Retell AI, recomendado al equipo y ya usado junto con Cal. Datos consultados el 2026-11-11 (pueden haber cambiado; verificar antes de decidir): créditos gratis al registrarse, pago por uso sin mínimo mensual, chat agents cobrados por mensaje de IA, widget que se incrusta con un `<script>` y una public key, y soporte de knowledge base y funciones personalizadas. Alternativas: la API de chat de Retell con interfaz propia, o un LLM directo desde el backend (p. ej. modelos gratuitos de OpenRouter, con límites bajos).
+- **Conocimiento del asistente:** solo texto redactado para usuarios. No usar `AI_CONTEXT.md` ni `PROJECT_LOGIC.md` como fuente: describen SPN_AD, TSU y el bloqueo de administradores.
+- **Eventos en vivo:** solo lectura, con las mismas reglas de visibilidad de la API pública (eventos `Published`, sin `online_url` ni inscritos), reutilizando `db/events.js`. No se darían herramientas que inscriban o cancelen.
+- **Datos de la cuenta del usuario:** fase posterior, con JWT; el id sale de `req.auth`, nunca del modelo.
+- **Controles previstos:** límite de peticiones propio, clave pública restringida por dominio, reCAPTCHA v3 y tope de gasto.
+- **Privacidad:** el historial quedaría en un tercero; avisar en el widget, revisar la Ley 1581 de 2012 y no guardar IP.
+- **Fases tentativas:** 2.6.1 agente de chat con su knowledge base y widget; 2.6.2 endpoint de solo lectura para eventos públicos, con tests; 2.6.3 (opcional) interfaz propia sobre la API de chat.
+- **Decisiones abiertas:** widget tal cual o interfaz propia; cuenta de Retell y public key; Cal dentro del chat o solo FAQ y eventos; uso anónimo o solo con sesión; guardar o no las conversaciones; destino del despliegue (este archivo menciona Render y Railway, pero `.env.example` y `docs/` mencionan Azure).
 
 ## Reglas para futuros cambios
 
